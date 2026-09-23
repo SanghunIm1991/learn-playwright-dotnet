@@ -11,7 +11,7 @@
 - **このセッションで変わった全プロジェクト共通のルール**（ユーザーレベルのスキル、次セッションから有効）:
   - `git-conventions`: author・committerはユーザー本人（`--author`を指定せずGit設定を使う。`user.email`はGitHubのnoreplyアドレスに設定済み）。Claudeの関与は`[claude]`接頭辞と`Co-Authored-By`トレーラー。最初のコミット前に`git config user.email`がnoreplyかを確認する
   - `git-history-rewrite`（新規）: 過去の履歴の修正。書き換えとforce pushはユーザーが`!`付きで実行し、Claudeは調査・バックアップ・指示ファイル作成・検証を担当する
-- **push状況**: 2026-09-24に再レビュー分をpush済み（`dbf9f00`まで）。以後のpushも毎回push前スキャンを行い、都度承認を得る。
+- **push状況**: 2026-09-24にUSDM学習サンプル分までpush済み。以後のpushも毎回push前スキャンを行い、都度承認を得る。
 - 要確認の独自判断: 読み込み時に保存データの`radio`が`null`なら全ラジオの選択を解除する仕様（REQ-05解釈、`docs/qa_log.md`の実装レビュー指摘#8）。
 
 ## 過去の申し送り（解決済み）
