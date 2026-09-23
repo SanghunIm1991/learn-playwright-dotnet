@@ -119,6 +119,7 @@ dotnet test
 |---|---|
 | `net::ERR_CONNECTION_REFUSED` を含むエラー | サーバーが起動しているか（手順1のターミナルが開いたままか） |
 | `Executable doesn't exist` を含むエラー | 0章の手順3（ブラウザのインストール）が済んでいるか |
+| `A compatible .NET SDK was not found` | 0章の手順1で .NET 10 SDK（10.0.x）が導入済みか。リポジトリの `global.json` は 10.0.100 以上の10.0系SDKを要求する |
 | タイトルが違うと言われる | 期待値の文字列（全角・半角、スペース）が完全に一致しているか |
 
 ## この章のまとめ

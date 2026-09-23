@@ -89,7 +89,7 @@ COMP-06はCOMP-01〜05のソースコード・仕様を解説・引用対象と�
   1. **.NET 10 SDKの導入確認**: `dotnet --list-sdks`を実行し、出力に`10.0.x`が含まれることを確認する手順。含まれない場合は、CLAUDE.md「実装環境」章が指す公式インストーラー（https://dotnet.microsoft.com/download/dotnet/10.0 ）で導入する必要がある旨を案内する（本教材はインストーラーの実行そのものは代行せず、案内に留める）。
   2. **学習用プロジェクトの作成**: `dotnet new nunit -n <プロジェクト名>`でNUnitテストプロジェクトの雛形を作成する手順、および`dotnet add package Microsoft.Playwright.NUnit`でPlaywright for .NETのNUnit連携パッケージを追加する手順。あわせて、本プロジェクト（LearnPlaywright）自体では、この雛形に相当するプロジェクトが`tests/`配下に実装工程で配置される予定であること（CLAUDE.md「フォルダ構成」章）を注記し、本章の手順は「Playwright for .NETプロジェクトの一般的な作り方」を体験させる学習用の独立した雛形作成であって、`tests/`配下の本体プロジェクトを上書き・複製するものではない旨を明確にする。
   3. **Playwrightブラウザ本体のインストール**: `dotnet build`実行後に生成される`bin/Debug/net10.0/playwright.ps1`スクリプトを用いた`pwsh bin/Debug/net10.0/playwright.ps1 install`の実行手順（CLAUDE.md「実装環境」章の記載に整合）。
-  4. **動作確認**: `dotnet new nunit`が生成する既定のサンプルテスト（`Tests.cs`の`Test1`等）を`dotnet test`で実行し、成功（Passed）することを確認する手順。CLAUDE.md「プログラム実行の承認について」「テスト実行コマンドの標準化」章に従い、`dotnet test`の標準形のみを用いる旨を明記する。
+  4. **動作確認**: `dotnet new nunit`が生成する既定のサンプルテスト（`UnitTest1.cs`〈クラス`Tests`〉の`Test1`等）を`dotnet test`で実行し、成功（Passed）することを確認する手順。CLAUDE.md「プログラム実行の承認について」「テスト実行コマンドの標準化」章に従い、`dotnet test`の標準形のみを用いる旨を明記する。
   5. 各手順について、期待されるコンソール出力の例（バージョン文字列の表示形式、`Passed!`表示の形式等）を示し、初心者が「うまくいったかどうか」を自己判断できるようにする。
 - **対応するCOMP-01〜05の部分**: 本章単独ではCOMP-01〜05の具体的な関数・コードは扱わない（環境そのものの構築が目的のため）。ただし手順3は、COMP-05関数設計書FUNC-43（`OneTimeSetUpAsync`）が前提とする「Playwrightブラウザ本体がインストール済みであること」という実行環境上の前提条件を、本章の時点で満たす位置づけを持つ。
 - **前提とする構成単位ID**: なし（教材の先頭章）

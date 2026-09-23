@@ -110,7 +110,8 @@ public static class FormPageHelpers
         return await page.GetByTestId(FormTestIds.Select).InputValueAsync();
     }
 
-    // ラジオボタンを選ぶ。null のときは「何も選ばない」ので、何もしないで終わる
+    // ラジオボタンを選ぶ。null のときは何もしないで終わる（既に選択済みでも解除はしない。何も選ばれていない開いたばかりのページで使う前提）
+    // ※アプリ側（app.js）は、radio が null の保存データを「読み込む」と全ラジオの選択を解除する
     public static async Task SetRadioValueAsync(IPage page, string? value)
     {
         ArgumentNullException.ThrowIfNull(page);
