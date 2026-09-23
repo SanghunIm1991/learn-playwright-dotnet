@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LearnPlaywright サンプルフォーム</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>LearnPlaywright サンプルフォーム</h1>
+
+    <!-- REQ-07: 実在の個人情報・機微情報を入力しないよう促す注意書き -->
+    <p class="notice" data-testid="notice">
+      これは学習用のサンプルです。入力内容はサーバーにJSONファイルとして保存されます。
+      氏名・連絡先・クレジットカード番号などの実在の個人情報・機微情報は入力せず、ダミーの値だけを入力してください。
+    </p>
+
+    <!-- data-request-count: 送信・読み込み処理が完了するたびに1ずつ増える（テストが処理完了を待つための目印） -->
+    <form id="user-form" data-testid="form" data-request-count="0" novalidate>
+      <div class="field">
+        <label for="text-input">ニックネーム（ダミー値）</label>
+        <input type="text" id="text-input" name="text" data-testid="text-input" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="slider">満足度（0〜100）</label>
+        <input type="range" id="slider" name="slider" data-testid="slider" min="0" max="100" step="1" value="50">
+      </div>
+
+      <div class="field">
+        <label for="select">好きな果物</label>
+        <select id="select" name="select" data-testid="select">
+          <option value="apple">りんご</option>
+          <option value="banana">バナナ</option>
+          <option value="cherry">さくらんぼ</option>
+        </select>
+      </div>
+
+      <fieldset class="field">
+        <legend>好きな色</legend>
+        <label><input type="radio" name="color" value="red" data-testid="radio-option"> 赤</label>
+        <label><input type="radio" name="color" value="green" data-testid="radio-option"> 緑</label>
+        <label><input type="radio" name="color" value="blue" data-testid="radio-option"> 青</label>
+      </fieldset>
+
+      <div class="buttons">
+        <button type="submit" id="submit-button" data-testid="submit-button">送信</button>
+        <button type="button" id="load-button" data-testid="load-button">読み込み</button>
+      </div>
+    </form>
+
+    <p id="message-area" class="message" data-testid="message-area" role="status" aria-live="polite"></p>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

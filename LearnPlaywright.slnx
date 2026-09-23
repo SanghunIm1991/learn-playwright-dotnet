@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LearnPlaywright.Logic/LearnPlaywright.Logic.csproj" />
+    <Project Path="src/LearnPlaywright.Server/LearnPlaywright.Server.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LearnPlaywright.Tests/LearnPlaywright.Tests.csproj" />
+    <Project Path="tests/LearnPlaywright.UnitTests/LearnPlaywright.UnitTests.csproj" />
+  </Folder>
+</Solution>
