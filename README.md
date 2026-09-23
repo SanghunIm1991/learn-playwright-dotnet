@@ -50,3 +50,13 @@ dotnet test
 ## ライセンス
 
 [MIT License](LICENSE)
+
+本リポジトリには、自作のソースコード・ドキュメントのみを含みます。以下の依存ソフトウェアはリポジトリに同梱せず、ビルド時（NuGet）または初回セットアップ時（ブラウザ）に各自の環境へ取得されます。それぞれのライセンスに従います。
+
+| 依存ソフトウェア | 用途 | ライセンス |
+|---|---|---|
+| .NET SDK / ASP.NET Core / System.Text.Json 等 | 実行基盤・Webサーバー | MIT |
+| NUnit / NUnit3TestAdapter / NUnit.Analyzers | テストフレームワーク | MIT |
+| Microsoft.NET.Test.Sdk / coverlet.collector | テスト実行基盤 | MIT |
+| Microsoft.Playwright / Microsoft.Playwright.NUnit | ブラウザ自動操作 | MIT（パッケージに同梱されるPlaywrightドライバはApache-2.0、Node.jsはMIT系） |
+| Chromium（Chrome for Testing） | テスト用ブラウザ（`playwright.ps1 install`で取得） | 各配布元のライセンス・利用規約 |
