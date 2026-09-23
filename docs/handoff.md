@@ -2,7 +2,7 @@
 
 ## 現在の申し送り
 
-- **公開工程（GitHubへのソースコード公開）: push承認待ち（2026-09-23）**。GitHubに空のPublicリポジトリ`SanghunIm1991/learn-playwright-dotnet`を作成し、ローカルの`origin`に登録済み。ブランチ名は`main`。過去の履歴は修正済み（全コミットがユーザーのGitHub noreplyアドレス名義、PC利用内容の記述は全履歴から除去）。公開前の最終レビュー（サブエージェント、静的）で重大な指摘なし。push後はGitHub上の表示確認、Pushスキャン記録・進捗の更新を行う。
+- **公開済み（2026-09-23）**: https://github.com/SanghunIm1991/learn-playwright-dotnet （Public、ブランチmain、MIT）。以後のpushも毎回push前スキャンを行い、都度承認を得る（CLAUDE.md「push運用方針」）。
 - **ユーザー側の後片付け**: 作業用クローンとリポジトリ外のバックアップフォルダ（旧履歴を含む）、`docs/git_filter_repo_guide/private/`（伏せ字なしの実物、.gitignore対象）の削除時期はユーザーが判断する。
 - **後日の再レビュー**: ユーザー指示「レビューは1回に制限し、後日再レビュー」（`docs/qa_log.md`参照）。対象は`docs/review_log.md`末尾の「レビュー回数制限下で進めた成果物」表（COMP-06の可読性向上フェーズ、教材0章の追記部分等）。公開後に実施してよい。
 - 要確認の独自判断: 読み込み時に保存データの`radio`が`null`なら全ラジオの選択を解除する仕様（REQ-05解釈、`docs/qa_log.md`の実装レビュー指摘#8）。

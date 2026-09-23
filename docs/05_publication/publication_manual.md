@@ -25,6 +25,7 @@
 - 2026-09-23: 最初のpush前スキャンで、旧Git規約によりコミットのcommitterに個人のメールアドレスが記録されていたことが分かり、公開をいったん保留した。
 - 同日: Git規約を改訂し（author・committerはユーザー本人のGitHub noreplyアドレス、Claudeの関与は`[claude]`接頭辞と`Co-Authored-By`で示す）、`git-history-rewrite`スキルの手順（フルバックアップ→ユーザーが`git filter-repo`で書き換え→Claudeが検証）で初回push前に過去の履歴を修正した。現在の履歴には個人のメールアドレスは含まれない（詳細は`docs/qa_log.md`、手法の解説は`docs/git_filter_repo_guide/README.md`）。
 - 同日: GitHubに空のPublicリポジトリ`learn-playwright-dotnet`を作成（`gh repo create`、README・LICENSEの自動生成なし）し、ブランチ名を`main`に変更。公開前の最終レビュー（サブエージェント、静的確認）で重大な指摘なし。
+- 同日: ユーザーの承認を得て`git push -u origin main`で公開した（https://github.com/SanghunIm1991/learn-playwright-dotnet ）。以後のpushも毎回4章のスキャンを行い、都度承認を得る。
 
 ## 4. push前スキャン手順（毎回・省略不可）
 
