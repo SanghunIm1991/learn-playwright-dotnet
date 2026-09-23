@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-01: フロントエンドUI） |
-| 版数 | v1.1 |
+| 版数 | v1.2 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント） |
 
@@ -15,8 +15,9 @@
 |---|---|---|---|
 | v1.0 | 2026-09-23 | 初版作成 | ClaudeCode |
 | v1.1 | 2026-09-23 | FUNC-02のvalues.text/slider想定外値時の挙動を明記（軽微指摘対応） | ClaudeCode |
+| v1.2 | 2026-09-23 | 可読性向上（内容変更なし） | ClaudeCode（design-doc-readability-editor） |
 
-このフェーズでは論理的な正しさ・網羅性・テスト容易性を優先し、文章表現の可読性向上は後段の別サブエージェント（design-doc-readability-editor等）の担当とする。
+論理的な正しさ・網羅性・テスト容易性はv1.1までの工程で確定済みであり、本版（v1.2）では文章表現・構成の可読性向上のみを行った。関数名・引数・戻り値・副作用・例外仕様・対応要件ID・数値・判断内容の変更は一切含まない。
 
 ## 2. 対応コンポーネント
 
@@ -59,11 +60,27 @@ FormElements = {
 
 ## 4. 関数一覧
 
-設計方針（CLAUDE.md品質方針・NFR-06の考え方の準用）に基づき、DOM読み取り／DOM書き込み／通信処理／ロジック（値の変換等）を関数として明確に分離する。各関数は1種類の副作用（またはなし）のみを持つ。ただし、`FormValues`の型（例: `slider: number`）を満たすために必要な最小限の型変換・値照合（例: FUNC-01でのスライダー値の`Number()`変換と`NaN`判定、FUNC-02でのselect/radioの選択肢値との照合）は、別関数へ切り出すほど独立したロジックではないため、DOM読み取り／DOM書き込み関数に含めてよいものとする。
+設計方針（CLAUDE.md品質方針・NFR-06の考え方の準用）に基づき、DOM読み取り／DOM書き込み／通信処理／ロジック（値の変換等）を関数として明確に分離する。各関数は1種類の副作用（またはなし）のみを持つ。
+
+ただし、`FormValues`の型（例: `slider: number`）を満たすために必要な最小限の型変換・値照合（例: FUNC-01でのスライダー値の`Number()`変換と`NaN`判定、FUNC-02でのselect/radioの選択肢値との照合）は、別関数へ切り出すほど独立したロジックではないため、DOM読み取り／DOM書き込み関数に含めてよいものとする。
+
+全9関数の一覧は以下のとおり。詳細（引数・戻り値・例外仕様等）は各節を参照。
+
+| ID | 関数名 | 種別 | 責務（要約） | 対応要件 |
+|---|---|---|---|---|
+| FUNC-01 | `collectFormValues` | DOM読み取り | 4種のUIコントロールの現在値を`FormValues`として取得する | REQ-02 |
+| FUNC-02 | `applyFormValues` | DOM書き込み | `FormValues`をUIコントロールへ反映し復元する | REQ-05 |
+| FUNC-03 | `postFormValues` | 通信 | `FormValues`をJSONでサーバーへPOST送信する | REQ-02 |
+| FUNC-04 | `fetchFormValues` | 通信 | 保存済み`FormValues`をサーバーからGET取得する | REQ-04 |
+| FUNC-05 | `displayMessage` | DOM書き込み | メッセージ表示領域にテキストと種別を反映する | REQ-04 |
+| FUNC-06 | `clearMessage` | DOM書き込み | メッセージ表示領域の内容をクリアする | REQ-05 |
+| FUNC-07 | `handleSubmitButtonClick` | 統括（イベントハンドラ） | 送信処理（収集→POST→結果表示）を統括する | REQ-02 |
+| FUNC-08 | `handleLoadButtonClick` | 統括（イベントハンドラ） | 読み込み処理（GET→復元/未存在表示）を統括する | REQ-04, REQ-05 |
+| FUNC-09 | `initializeApp` | 統括（初期化） | 送信・読み込みボタンへイベントリスナーを登録する | REQ-01, REQ-02, REQ-04, REQ-05 |
 
 ### FUNC-01: collectFormValues
 
-- **責務**: DOM上の4種類の入力系UIコントロール（テキストボックス・スライダー・プルダウン・ラジオボタン）の現在値を読み取り、1つの`FormValues`オブジェクトとして返す。
+- **責務**: DOM上の4種類の入力系UIコントロール（テキストボックス・スライダー・プルダウンリスト・ラジオボタン）の現在値を読み取り、1つの`FormValues`オブジェクトとして返す。
 - **引数**:
   - `elements: FormElements` — 値の読み取り対象となるDOM要素の集合
 - **戻り値**: `FormValues`
