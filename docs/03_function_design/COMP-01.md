@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-01: フロントエンドUI） |
-| 版数 | v1.3 |
+| 版数 | v1.4 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント） |
 
@@ -17,6 +17,7 @@
 | v1.1 | 2026-09-23 | FUNC-02のvalues.text/slider想定外値時の挙動を明記（軽微指摘対応） | ClaudeCode |
 | v1.2 | 2026-09-23 | 可読性向上（内容変更なし） | ClaudeCode（design-doc-readability-editor） |
 | v1.3 | 2026-09-23 | 実装工程での変更を反映。(1) FUNC-02: `values.radio`が`null`の場合、既存の選択状態を保持する仕様から「全ラジオボタンの選択を解除する」仕様に変更（REQ-05の「ラジオボタンの選択項目の復元」に保存時の未選択状態も含めるため。実装レビュー指摘#8、`docs/qa_log.md`参照）。(2) FUNC-09: 送信・読み込み処理の完了ごとにform要素の`data-request-count`属性を1増やす処理を追加（テストが処理完了を待つための目印。`docs/qa_log.md`参照） | ClaudeCode |
+| v1.4 | 2026-09-24 | v1.3の変更（FUNC-09の`data-request-count`加算処理・`formElement`引数）を本文に反映（実装の2回目レビュー指摘対応） | ClaudeCode |
 
 論理的な正しさ・網羅性・テスト容易性はv1.1までの工程で確定済みであり、本版（v1.2）では文章表現・構成の可読性向上のみを行った。関数名・引数・戻り値・副作用・例外仕様・対応要件ID・数値・判断内容の変更は一切含まない。
 
@@ -196,11 +197,12 @@ FormElements = {
 
 ### FUNC-09: initializeApp
 
-- **責務**: ページ読み込み完了時（`DOMContentLoaded`）に1度だけ呼び出され、送信ボタン・読み込みボタンへクリックイベントリスナーを登録する。
+- **責務**: ページ読み込み完了時（`DOMContentLoaded`）に1度だけ呼び出され、送信ボタン・読み込みボタンへクリックイベントリスナーを登録する。登録するリスナーは、FUNC-07/FUNC-08の処理完了後に、form要素の`data-request-count`属性を1増やす（テスト〈COMP-04 FUNC-38/39〉が処理完了を待つための目印。v1.3で追加）。
 - **引数**:
-  - `deps: { elements: FormElements, messageElement: HTMLElement, submitButton: HTMLButtonElement, loadButton: HTMLButtonElement, postUrl: string, loadUrl: string, fetchFn?: function }`
+  - `deps: { elements: FormElements, messageElement: HTMLElement, submitButton: HTMLButtonElement, loadButton: HTMLButtonElement, formElement?: HTMLFormElement, postUrl: string, loadUrl: string, fetchFn?: function }`
+  - `formElement`（省略可）: `data-request-count`属性を持つform要素（HTMLでは`id="user-form"`・`data-testid="form"`・初期値`data-request-count="0"`）。省略時は回数の更新を行わない
 - **戻り値**: なし
-- **副作用**: あり — `submitButton` / `loadButton`への`addEventListener('click', ...)`呼び出し（それぞれFUNC-07・FUNC-08をイベントハンドラとして登録する）
+- **副作用**: あり — `submitButton` / `loadButton`への`addEventListener('click', ...)`呼び出し（それぞれFUNC-07・FUNC-08をイベントハンドラとして呼び出すリスナーを登録する）。クリック時は、FUNC-07/FUNC-08の`Promise`完了（成功・失敗・エラー表示のいずれの場合も）を待ってから、`formElement.dataset.requestCount`を「現在値（未設定時は0）＋1」の文字列に書き換える（内部補助関数`markRequestCompleted`）
 - **例外/エラー時の挙動**: `deps.elements` / `deps.submitButton` / `deps.loadButton`のいずれかが`null`/`undefined`の場合: `TypeError`をthrowする（初期化失敗を早期に検知できるようにする）
 - **対応要件**: REQ-01（画面のインタラクティブ化）、REQ-02, REQ-04, REQ-05（FUNC-07・FUNC-08をイベントハンドラとして登録することで、FUNC-08が対応するREQ-04・REQ-05の双方を間接的に成立させるため）
 

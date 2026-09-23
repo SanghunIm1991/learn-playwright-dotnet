@@ -65,6 +65,9 @@ public static class FormPageHelpers
     {
         ArgumentNullException.ThrowIfNull(page);
         if (value is null) return;
+        // 改行などの制御文字はCSSセレクタを壊すため受け付けない
+        if (value.Any(char.IsControl))
+            throw new ArgumentException("ラジオボタンの値に制御文字は使えません。", nameof(value));
         // 値に ' や \ が含まれてもセレクタが壊れないようエスケープする
         string escaped = value.Replace("\\", "\\\\").Replace("'", "\\'");
         await page.Locator($"[data-testid='{FormTestIds.RadioOption}'][value='{escaped}']").CheckAsync();

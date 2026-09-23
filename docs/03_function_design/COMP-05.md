@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-05: Playwrightテストシナリオ） |
-| 版数 | v1.4 |
+| 版数 | v1.5 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント・論理設計担当／可読性向上担当） |
 
@@ -18,6 +18,7 @@
 | v1.2 | 2026-09-23 | テスト工程への申し送り事項を追記（軽微指摘対応） | ClaudeCode |
 | v1.3 | 2026-09-23 | 可読性向上（内容変更なし）。(1)4節冒頭に6関数のID・関数名・所属グループの一覧表を追加し、重複していた文章説明を整理、(2)4節内のグループ見出しレベルを`####`から`###`へ統一（節→個別関数見出しと同階層のグループ見出しが一段深くなっていたアウトライン上の逆転を解消）、(3)2節冒頭の連続する2文の接続をやや単調だった箇所で調整。関数名・引数・戻り値・副作用・例外仕様・対応ID・数値・判断内容・契約は一切変更していない | ClaudeCode |
 | v1.4 | 2026-09-23 | 実装工程での確定を反映。`ServerConfig.BaseUrl`=`http://localhost:5080`、サーバープロジェクト=`src/LearnPlaywright.Server`で確定（名称は維持）。FUNC-43は`dotnet run --project <path> --no-build --no-launch-profile --urls <BaseUrl>`で起動し、保存先を環境変数`DataDirectory`で一時ディレクトリに向ける。起動前にポート使用中を検出した場合は失敗させる。ヘッドフル実行は環境変数`LEARNPLAYWRIGHT_HEADED=1`。FUNC-44は一時ディレクトリも削除する | ClaudeCode |
+| v1.5 | 2026-09-24 | v1.4の変更を本文に反映（実装の2回目レビュー指摘対応）。FUNC-43に処理手順（一時ディレクトリ決定→ポート使用中検出→`--no-build --no-launch-profile --urls`での起動・環境変数`DataDirectory`指定→起動待ち→ブラウザ起動）と対応する例外を記載、4節のコード例（`ServerConfig`・`_dataDirectory`）、FUNC-44の一時ディレクトリ削除、2.1節の確定値を更新 | ClaudeCode |
 
 ## 2. 対応コンポーネント
 
@@ -34,9 +35,9 @@ COMP-05はCOMP-04（`docs/03_function_design/COMP-04.md` v1.2）が提供する�
 | 事項 | 結論 |
 |---|---|
 | バックエンドサーバー（COMP-02）プロセスの起動主体 | COMP-05が自身のテストフィクスチャの`[OneTimeSetUp]`（FUNC-43）でサーバープロセスを起動し、`[OneTimeTearDown]`（FUNC-44）で終了させる設計とする。CLAUDE.mdの「テスト実行コマンドの標準化」章が`dotnet test`の標準形のみでのテスト実行を求めており、テスト実行者が別途手動でサーバーを起動しておく運用は前提にできないため。 |
-| サーバーのベースURL・待受ポート | プレースホルダとして`http://localhost:5080`を暫定値とする（4節`ServerConfig.BaseUrl`）。COMP-02の関数設計書はNFR-02（localhost限定）をKestrel既定設定で充足するとのみ定め、具体的なポート番号までは確定していない。実装工程でCOMP-02側の`launchSettings.json`等の実際の待受ポートが確定次第、本値を更新することを申し送る。あわせて、FUNC-43がサーバープロセスを起動する際に、このポートで実際に待ち受けさせるための起動時指定方法（`dotnet run --urls=<ServerConfig.BaseUrl>`のような起動引数、またはプロセス起動時の環境変数`ASPNETCORE_URLS`設定等）をCOMP-02側の起動構成と合わせて実装工程で確定・反映することも申し送る（4節FUNC-43参照）。 |
+| サーバーのベースURL・待受ポート | プレースホルダとして`http://localhost:5080`を暫定値とする（4節`ServerConfig.BaseUrl`）。COMP-02の関数設計書はNFR-02（localhost限定）をKestrel既定設定で充足するとのみ定め、具体的なポート番号までは確定していない。実装工程でCOMP-02側の`launchSettings.json`等の実際の待受ポートが確定次第、本値を更新することを申し送る。あわせて、FUNC-43がサーバープロセスを起動する際に、このポートで実際に待ち受けさせるための起動時指定方法（`dotnet run --urls=<ServerConfig.BaseUrl>`のような起動引数、またはプロセス起動時の環境変数`ASPNETCORE_URLS`設定等）をCOMP-02側の起動構成と合わせて実装工程で確定・反映することも申し送る（4節FUNC-43参照）。**（実装工程で確定済み: `http://localhost:5080`、`dotnet run --no-build --no-launch-profile --urls <BaseUrl>`で起動。4節FUNC-43参照）** |
 | サーバー起動完了の待ち受け方法 | COMP-02が新設のヘルスチェック専用エンドポイントを持たない前提のため、既存の`GET /api/form-data`エンドポイントへ`HttpClient`でポーリングし、（Cookie未設定でも200/404いずれかの正常なHTTPレスポンスが返れば）起動完了とみなす設計とする（4節FUNC-43）。新規エンドポイントをCOMP-02へ追加要求しないことで、確定済みのCOMP-02契約に変更を生じさせない。 |
-| ブラウザの種類・ヘッドレス設定の既定値 | Chromiumを既定ブラウザとし、既定で`Headless: true`とする（自動実行時の安定性・CON-01のWindows 11ローカル実行前提を優先）。デバッグ時にヘッドフルで確認したい場合は、実装工程で環境変数等による切替手段を設けることを申し送る（本設計では切替の要否・方式までは規定しない）。 |
+| ブラウザの種類・ヘッドレス設定の既定値 | Chromiumを既定ブラウザとし、既定で`Headless: true`とする（自動実行時の安定性・CON-01のWindows 11ローカル実行前提を優先）。デバッグ時にヘッドフルで確認したい場合は、実装工程で環境変数等による切替手段を設けることを申し送る（本設計では切替の要否・方式までは規定しない）。**（実装工程で確定済み: 環境変数`LEARNPLAYWRIGHT_HEADED=1`でヘッドフル実行）** |
 | テスト間のブラウザコンテキスト分離方式 | 各テストの`[SetUp]`（FUNC-45）で共有`IBrowser`から新規`IBrowserContext`を生成し、Cookie等の状態を一切共有しない設計とする。これによりCOMP-04関数設計書2.1節が前提とする「各テストは独立したブラウザコンテキスト・独立したユーザー識別Cookieを用いる」という要求をCOMP-05側の責務として満たす。 |
 | シナリオ1（送信→保存検証）における「サーバー保存内容の検証」の方法 | COMP-05はCOMP-01を通じたエンドツーエンドの検証に徹する方針（2節）であり、COMP-04もHTTPクライアントや直接ファイル参照のヘルパーを提供しない。そのため、送信結果の検証はCOMP-01 FUNC-07が表示するメッセージ種別（COMP-04 FUNC-42 `GetMessageAsync`が返す`MessageState.Type`）を用いた間接検証（成功メッセージ＝保存成功、エラーメッセージ＝保存拒否）とする。保存された内容そのものの値レベルでの一致検証は、読み込み経由でのみ確認可能なためシナリオ2（FUNC-48）の責務とする。 |
 | シナリオ2（読込→復元検証）における前提データの用意方法 | シナリオ1のテスト実行結果を流用せず、シナリオ2自身の中で独自に送信操作（FUNC-40・FUNC-38相当）を行い前提データを用意する設計とする。NUnitのテストケースは実行順序に依存せず独立して成立すべきという一般原則、およびCON-04が前提とするNUnitベースの標準的なテスト設計慣行に従う。 |
@@ -89,14 +90,14 @@ namespace LearnPlaywright.Tests.Scenarios;
 using LearnPlaywright.Tests.TestData; // COMP-04（FormValues, FormValuesTestCase, FormValuesTestCases, FormTestIds, MessageState, 各Playwright操作ヘルパー）
 
 /// <summary>
-/// テスト実行時のサーバー起動・接続設定。実装工程でCOMP-02の実際の待受ポート・プロジェクトパスに
-/// 合わせて値を確定・更新する（2.1節「本工程で確定した仕様決定事項」参照）。
+/// テスト実行時のサーバー起動・接続設定。値は実装工程で確定済み（2.1節参照。名称のPlaceholderは本設計書との対応のため維持）。
 /// </summary>
 public static class ServerConfig
 {
-    public const string BaseUrl = "http://localhost:5080"; // プレースホルダ。実装工程で確定
-    public const string ServerProjectPathPlaceholder = "src/LearnPlaywright.Server"; // プレースホルダ。実装工程で確定
+    public const string BaseUrl = "http://localhost:5080"; // 実装工程で確定
+    public const string ServerProjectPathPlaceholder = "src/LearnPlaywright.Server"; // リポジトリルートからの相対パス。実装工程で確定
     public static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(30);
+    public static bool Headed => Environment.GetEnvironmentVariable("LEARNPLAYWRIGHT_HEADED") == "1"; // デバッグ用のヘッドフル実行
 }
 
 [TestFixture]
@@ -106,6 +107,7 @@ public sealed class FormDataScenarioTests
     private IPlaywright? _playwright;
     private IBrowser? _browser;
     private System.Diagnostics.Process? _serverProcess;
+    private string? _dataDirectory; // テスト専用の保存先（一時ディレクトリ）
 
     // FUNC-45/46で管理（テストごとに1個ずつ）
     private IBrowserContext? _context;
@@ -115,23 +117,36 @@ public sealed class FormDataScenarioTests
 
 ### FUNC-43: OneTimeSetUpAsync
 
-- **責務**: `[OneTimeSetUp]`属性を持ち、本テストフィクスチャ内の全テスト実行前に1回だけ呼び出される。(1) COMP-02のバックエンドサーバーを子プロセスとして起動する際、`ServerConfig.BaseUrl`で指定したポート（`http://localhost:5080`、プレースホルダ）で実際に待ち受けさせるよう、プロセス起動時に明示的に指定する（例: `dotnet run --urls=http://localhost:5080`のような起動引数、または環境変数`ASPNETCORE_URLS`をプロセス起動時に設定する。具体的な指定方法はCOMP-02側の起動構成と合わせて実装工程で確定・反映する。2.1節参照）。その上で`ServerConfig.BaseUrl`へのHTTPリクエストが正常に応答するまでポーリングして起動完了を待つ、(2) Playwrightドライバ（`Microsoft.Playwright.Playwright.CreateAsync()`）を初期化し、Chromiumブラウザ（既定`Headless: true`）を起動して`_browser`フィールドへ保持する。
+- **責務**: `[OneTimeSetUp]`属性を持ち、本テストフィクスチャ内の全テスト実行前に1回だけ呼び出される。次の順で処理する。
+  1. テスト専用の保存先として、一時ディレクトリ配下の一意なパス（`%TEMP%\LearnPlaywright-e2e-<GUID>`）を決め、`_dataDirectory`へ保持する（開発用の保存先`App_Data`を汚さないため）
+  2. **ポート使用中の検出**: `ServerConfig.BaseUrl`のホスト・ポートへTCP接続を試み（1秒でタイムアウト）、接続できた場合は既に別のサーバー（手動起動した開発用サーバー等）が待ち受けているとみなし、`InvalidOperationException`をthrowして失敗させる（別サーバーに対してテストが走ることを防ぐ）
+  3. COMP-02のバックエンドサーバーを子プロセスとして起動する。コマンドは`dotnet run --project <サーバープロジェクトの絶対パス> --no-build --no-launch-profile --urls <ServerConfig.BaseUrl>`とする（ホストはlocalhost固定のままポートのみ明示指定。NFR-02、COMP-02 2.1節）。
+     - サーバープロジェクトのパスは、テストアセンブリの場所から上位へ辿って`global.json`のあるリポジトリルートを見つけ、`ServerConfig.ServerProjectPathPlaceholder`（`src/LearnPlaywright.Server`）を連結して求める
+     - `--no-build`: `dotnet test`でビルド済みの成果物を使い、起動時の再ビルドを避ける
+     - `--no-launch-profile`: `launchSettings.json`のプロファイル（URL・環境変数）に起動設定を左右させない
+     - 環境変数`DataDirectory`に手順1のパスを設定する（COMP-02の`Program.cs`が設定キー`DataDirectory`で保存先を上書きする）。また、子プロセスの環境変数から`ASPNETCORE_URLS`を除去する（`--urls`指定と競合させないため）
+     - 標準出力・標準エラーを取り込み、起動失敗時の例外メッセージに含める
+  4. `GET <ServerConfig.BaseUrl>/api/form-data`が200または404を返すまで250ms間隔でポーリングして起動完了を待つ
+  5. Playwrightドライバ（`Microsoft.Playwright.Playwright.CreateAsync()`）を初期化し、Chromiumブラウザを起動して`_browser`フィールドへ保持する。既定はヘッドレス（`Headless: true`）で、環境変数`LEARNPLAYWRIGHT_HEADED=1`の場合のみ画面を表示する（デバッグ用）
 - **引数**: なし（NUnitの`[OneTimeSetUp]`属性を持つパラメータなしメソッドという規約に従う）
 - **戻り値**: `Task`（意味的な戻り値は持たない。正常終了＝フィクスチャ配下の全テストの実行が開始可能な状態になったことを表す）
-- **副作用**: あり — OSプロセス起動（COMP-02サーバー）、ブラウザプロセス起動、インスタンスフィールド（`_serverProcess` / `_playwright` / `_browser`）への書き込み
+- **副作用**: あり — OSプロセス起動（COMP-02サーバー）、ブラウザプロセス起動、インスタンスフィールド（`_dataDirectory` / `_serverProcess` / `_playwright` / `_browser`）への書き込み。一時ディレクトリはサーバー初回保存時に作成される（削除はFUNC-44）
 - **例外/エラー時の挙動**:
+  - 手順2で`ServerConfig.BaseUrl`のポートが使用中の場合: `InvalidOperationException`をthrowする（サーバープロセスは起動しない）。配下の全テストがエラーとして記録される
+  - `global.json`のあるリポジトリルートが見つからない場合: `InvalidOperationException`をthrowする
+  - 手順4の待機中にサーバープロセスが終了した場合: サーバーのログを含めた`InvalidOperationException`をthrowする
   - サーバープロセスの起動自体に失敗した場合（実行ファイルが見つからない等）: OSレベルの例外（`System.ComponentModel.Win32Exception`等）がそのまま伝播し、NUnitが本フィクスチャ配下の全テストをエラー（Error）として記録する
-  - `ServerConfig.StartupTimeout`（30秒）以内にサーバーからの正常なHTTPレスポンスが得られない場合: `TimeoutException`をthrowする。この場合も配下の全テストがエラーとして記録される
+  - `ServerConfig.StartupTimeout`（30秒）以内にサーバーからの正常なHTTPレスポンスが得られない場合: サーバーのログを含めた`TimeoutException`をthrowする。この場合も配下の全テストがエラーとして記録される
   - Playwrightドライバ・ブラウザの初期化に失敗した場合: Playwright側の例外がそのまま伝播する
 - **対応要件**: REQ-09（シナリオ実行の前提環境を整える）, CON-01（Windows 11ローカル実行前提のプロセス起動・ポーリング方式）, CON-04（Playwright for .NETのドライバ初期化）
 
 ### FUNC-44: OneTimeTearDownAsync
 
-- **責務**: `[OneTimeTearDown]`属性を持ち、本テストフィクスチャ内の全テスト終了後に1回だけ呼び出される。ブラウザ・Playwrightドライバを破棄し、FUNC-43で起動したバックエンドサーバープロセスを終了する。
+- **責務**: `[OneTimeTearDown]`属性を持ち、本テストフィクスチャ内の全テスト終了後に1回だけ呼び出される。ブラウザ・Playwrightドライバを破棄し、FUNC-43で起動したバックエンドサーバープロセスを終了し、テスト専用の一時ディレクトリ（`_dataDirectory`）を削除する。
 - **引数**: なし
 - **戻り値**: `Task`
-- **副作用**: あり — ブラウザプロセス終了、Playwrightドライバの破棄、サーバープロセスの終了（`Process.Kill()`等）
-- **例外/エラー時の挙動**: ブラウザの破棄・サーバープロセスの終了はそれぞれ独立したtry-catchで囲み、一方の解放処理が失敗しても他方の解放処理の実行を妨げない設計とする（クリーンアップ処理は可能な限り完遂させる方針）。個々の解放失敗はNUnitの警告（`TestContext.WriteLine`等）としてログに残す程度とし、後続のテストセッション（次回の`dotnet test`実行）へ影響を残さないことを優先する。プロセスが既に終了している状態での`Process.Kill()`呼び出し等、通常想定される例外はcatchして無視してよい
+- **副作用**: あり — ブラウザプロセス終了、Playwrightドライバの破棄、サーバープロセスの終了（`Process.Kill(entireProcessTree: true)`）、一時ディレクトリの再帰削除
+- **例外/エラー時の挙動**: ブラウザの破棄・サーバープロセスの終了・一時ディレクトリの削除はそれぞれ独立したtry-catchで囲み、一方の解放処理が失敗しても他方の解放処理の実行を妨げない設計とする（クリーンアップ処理は可能な限り完遂させる方針）。個々の解放失敗はNUnitの警告（`TestContext.WriteLine`等）としてログに残す程度とし、後続のテストセッション（次回の`dotnet test`実行）へ影響を残さないことを優先する。プロセスが既に終了している状態での`Process.Kill()`呼び出し等、通常想定される例外はcatchして無視してよい
 - **対応要件**: REQ-09（テスト実行環境の後始末）, CON-01, CON-04
 
 ### FUNC-45: SetUpAsync

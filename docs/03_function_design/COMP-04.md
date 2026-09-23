@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-04: テストデータ構造・ヘルパー関数） |
-| 版数 | v1.3 |
+| 版数 | v1.4 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント） |
 
@@ -17,6 +17,7 @@
 | v1.1 | 2026-09-23 | 論理レビュー指摘4件を反映。(1)FUNC-30〜42の対応要件欄から誤って付与されていたREQ-09を削除（COMP-04の対応要件はREQ-08/NFR-07/CON-04,06,07のみでREQ-09はCOMP-05専属のため）、3節のFormValuesTestCase docstringのREQ-09言及も削除。(2)2.1節が記録を自称していたが未記録だった独自判断2件（テストケースの命名・識別方法、排他制御の要否）をdocs/qa_log.mdに追記。(3)3節に`FormValuesTestCases`静的クラス（`GetCases`シグネチャ）のコード例を追加。(4)6節自己チェック見出しにCON-07を追加（本文には既に記載済みだったが見出しから欠落していた） | ClaudeCode |
 | v1.2 | 2026-09-23 | 可読性向上（内容変更なし）。論理面（データ構造・関数名・引数・戻り値・副作用・例外仕様・対応ID・数値・判断内容）は一切変更していない。4節の16関数一覧を単一の長大表から、種別ごとの4グループ（データ生成3件／個別コントロール操作10件／複合ヘルパー2件／メッセージ取得1件）に分割した小見出し＋小テーブル構成に再編し、一覧性を高めた | ClaudeCode |
 | v1.3 | 2026-09-23 | 実装工程での確定・差分を反映。要素特定は`page.GetByTestId`（data-testid属性）で実装。FUNC-32は`EvaluateAsync`方式に確定。FUNC-36は値中の`'`・`\`をエスケープしてセレクタに埋め込む。FUNC-38/39はクリック後、form要素（`FormTestIds.Form`="form"を追加）の`data-request-count`属性が変化するまで自動リトライ付きアサーションで待機する（処理完了待ち）。選択肢値をHTML実装に合わせ`FormOptionValues`クラス（select: apple/banana/cherry、radio: red/green/blue）として追加。`FormFieldLimits`のスライダー値（0/100）はHTML実装値と一致するため据え置き（名称は維持） | ClaudeCode |
+| v1.4 | 2026-09-24 | v1.3の変更を本文に反映（実装の2回目レビュー指摘対応）。3節に`FormTestIds.Form`・`FormOptionValues`を追加、FUNC-30/32/34/35/38/39の要素特定を`GetByTestId`に統一、FUNC-32を`EvaluateAsync`方式に確定、FUNC-36の`radio:null`の根拠をCOMP-01 v1.3（FUNC-02の全選択解除仕様）に合わせて改め、セレクタ用エスケープと制御文字時の`ArgumentException`（2回目レビュー軽微指摘で実装に追加）を記載、FUNC-38/39にクリック後の`data-request-count`変化待ちを記載 | ClaudeCode |
 
 ## 2. 対応コンポーネント
 
@@ -33,7 +34,7 @@ COMP-04はCOMP-05からのみ参照される基盤ライブラリであり、COM
 | 事項 | 結論 |
 |---|---|
 | Playwrightからのブラウザ要素特定方式 | `data-testid`属性による要素特定方式を採用する。COMP-01の実装（`src/`配下のHTML）は、テキストボックス・スライダー・プルダウンリスト・ラジオボタン各選択肢・送信ボタン・読み込みボタン・メッセージ表示領域のそれぞれに、4節の`FormTestIds`定数と一致する`data-testid`属性を付与する必要がある。COMP-01関数設計書（v1.2）はJavaScript関数の契約のみを定めHTML属性には言及していないため、本決定はCOMP-01関数設計書と矛盾しないが、COMP-01の実装時に本節の内容を踏まえて`data-testid`属性を追加することを申し送る。 |
-| スライダーのmin/max、プルダウン・ラジオボタンの具体的な選択肢値 | COMP-01の静的HTMLマークアップ（REQ-01、COMP-01関数設計書2.1節）に属する実装詳細であり、本工程時点では未確定。4節の`FormFieldLimits`に仮値（プレースホルダ）を置き、実装工程でCOMP-01の実際のHTML属性値が確定し次第、本ファイルの値を実装値に合わせて更新することを申し送る。 |
+| スライダーのmin/max、プルダウン・ラジオボタンの具体的な選択肢値 | COMP-01の静的HTMLマークアップ（REQ-01、COMP-01関数設計書2.1節）に属する実装詳細であり、本工程時点では未確定。4節の`FormFieldLimits`に仮値（プレースホルダ）を置き、実装工程でCOMP-01の実際のHTML属性値が確定し次第、本ファイルの値を実装値に合わせて更新することを申し送る。**（実装工程で確定済み: スライダー0/100、select: apple/banana/cherry、radio: red/green/blue。3節参照）** |
 | テストケースの命名・識別方法 | `FormValuesTestCase.CaseId`をNUnitのテストケース表示名として用いる（`TestCaseData.SetName(caseId)`）。障害発生時にどの入力パターンが失敗したかをテスト結果から即座に判別できるようにするため。 |
 | 排他制御の要否 | COMP-04はテストコード側の静的データ・ヘルパー関数のみで構成され、複数テスト間で共有される可変状態を持たない（各テストは独立したブラウザコンテキスト・独立したユーザー識別Cookieを用いる前提、COMP-05側の責務）。したがってコンポーネント設計書5.4節の排他制御検討はCOMP-04には適用されない。 |
 
@@ -110,10 +111,19 @@ public static class FormFieldLimits
     public const int SelectMaxLength = 200;   // select: 200文字を超える場合は検証エラー（実運用ではHTML選択肢の短い固定値のため到達しにくい）
     public const int RadioMaxLength = 200;    // radio: 200文字を超える場合は検証エラー（同上）
 
-    // --- COMP-01実装（静的HTML）確定後に更新するプレースホルダ値 ---
-    // スライダー（type="range"）のmin/max属性の実際値。実装工程で確定次第、本値を更新すること（2.1節）。
+    // --- COMP-01実装（wwwroot/index.html）のスライダーmin/max属性値 ---
+    // 実装工程でHTML実装値（0/100）と一致することを確認済み。名称（Placeholder）は本設計書との対応のため維持する。
     public const double SliderMinPlaceholder = 0;
     public const double SliderMaxPlaceholder = 100;
+}
+
+/// <summary>
+/// COMP-01（wwwroot/index.html）のプルダウン・ラジオボタンの選択肢値（実装工程で確定）。
+/// </summary>
+public static class FormOptionValues
+{
+    public static readonly IReadOnlyList<string> SelectOptions = ["apple", "banana", "cherry"];
+    public static readonly IReadOnlyList<string> RadioOptions = ["red", "green", "blue"];
 }
 
 /// <summary>
@@ -129,6 +139,7 @@ public static class FormTestIds
     public const string SubmitButton = "submit-button";
     public const string LoadButton = "load-button";
     public const string MessageArea = "message-area";
+    public const string Form = "form";                 // data-request-count属性（処理完了回数）を持つform要素。FUNC-38/39の完了待ちに用いる
 }
 
 /// <summary>
@@ -226,7 +237,7 @@ FUNC-27〜28はデータ構造（3節）に内包されるため、以降の詳�
   - `page: Microsoft.Playwright.IPage` — 操作対象のPlaywrightページ
   - `value: string` — 設定する文字列（空文字列可）
 - **戻り値**: `Task`
-- **副作用**: あり — `page.Locator(FormTestIds.TextInput).FillAsync(value)`によるDOM上のテキストボックスの値の書き換え
+- **副作用**: あり — `page.GetByTestId(FormTestIds.TextInput).FillAsync(value)`によるDOM上のテキストボックスの値の書き換え
 - **例外/エラー時の挙動**:
   - `page`または`value`が`null`の場合: `ArgumentNullException`をthrowする
   - 対象要素がPlaywrightの既定タイムアウト内に見つからない場合: Playwrightの`TimeoutException`がそのままthrowされる（本関数はcatchしない）
@@ -248,7 +259,7 @@ FUNC-27〜28はデータ構造（3節）に内包されるため、以降の詳�
   - `page: IPage`
   - `value: double` — 設定する数値
 - **戻り値**: `Task`
-- **副作用**: あり — スライダーの値の書き換え。range要素は`FillAsync`では値変更イベントが発火しない場合があるため、`Locator.EvaluateAsync("(el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }", value)`相当の実装、またはPlaywrightの`FillAsync`が range 要素に対応していることを実装工程で確認したうえでいずれかに確定する
+- **副作用**: あり — スライダーの値の書き換え。range要素は`FillAsync`では値変更イベントが発火しない場合があるため、`page.GetByTestId(FormTestIds.Slider).EvaluateAsync("(el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }", <valueをInvariantCultureで文字列化した値>)`で実装する（実装工程で`EvaluateAsync`方式に確定）
 - **例外/エラー時の挙動**:
   - `page`が`null`の場合: `ArgumentNullException`
   - `value`が`NaN`または`±Infinity`の場合: `ArgumentException`をthrowする（COMP-03 FUNC-20の検証ルールと対称に、UIへ設定不能な値を渡すこと自体を早期に防止する）
@@ -275,7 +286,7 @@ FUNC-27〜28はデータ構造（3節）に内包されるため、以降の詳�
   - `page: IPage`
   - `value: string` — 選択する`option`要素のvalue属性値
 - **戻り値**: `Task`
-- **副作用**: あり — `page.Locator(FormTestIds.Select).SelectOptionAsync(value)`
+- **副作用**: あり — `page.GetByTestId(FormTestIds.Select).SelectOptionAsync(value)`
 - **例外/エラー時の挙動**:
   - `page`または`value`が`null`の場合: `ArgumentNullException`
   - `value`に一致する`option`が存在しない場合: Playwrightの標準例外（該当なしエラー）がそのままthrowされる
@@ -287,21 +298,24 @@ FUNC-27〜28はデータ構造（3節）に内包されるため、以降の詳�
 - **責務**: プルダウンリストの現在の選択値を取得する。
 - **引数**: `page: IPage`
 - **戻り値**: `Task<string>`
-- **副作用**: なし（`page.Locator(FormTestIds.Select).InputValueAsync()`による読み取りのみ）
+- **副作用**: なし（`page.GetByTestId(FormTestIds.Select).InputValueAsync()`による読み取りのみ）
 - **例外/エラー時の挙動**: `page`が`null`の場合`ArgumentNullException`。要素未検出時は`TimeoutException`
 - **対応要件**: REQ-08
 
 ### FUNC-36: SetRadioValueAsync
 
-- **責務**: 指定した値に対応するラジオボタンを選択する。`value`が`null`の場合は何も操作しない（COMP-01 FUNC-02の「`radio: null`の場合は既存の選択状態を保持する」という意味論に合わせる。テスト開始直後の初期状態ではいずれのラジオボタンも未選択であることを前提とする）。
+- **責務**: 指定した値に対応するラジオボタンを選択する。`value`が`null`の場合は何も操作しない（no-op）。
+  - `null`でno-opとする根拠: ラジオボタンはユーザー操作で「選択解除」できないUIのため、テストでの`radio: null`（未選択）は「どれもクリックしない」ことで表現する。テスト開始直後の初期状態ではいずれのラジオボタンも未選択であることを前提とする（`FormValues.Radio`が`null`のケースは新規ページで入力するため、no-opで未選択状態のまま送信される）。
+  - 復元側との関係: COMP-01 FUNC-02（v1.3以降）は`radio: null`を受け取ると「全ラジオボタンの選択を解除する」。本関数は入力操作（ユーザー操作の模倣）であり、FUNC-02の復元処理（プログラムによるDOM書き換え）とは役割が異なるため、全選択解除は行わない。
 - **引数**:
   - `page: IPage`
   - `value: string?`
 - **戻り値**: `Task`
-- **副作用**: `value`が非`null`の場合のみあり — `page.Locator($"[data-testid='{FormTestIds.RadioOption}'][value='{value}']").CheckAsync()`
+- **副作用**: `value`が非`null`の場合のみあり — 値中の`\`を`\\`、`'`を`\'`にエスケープした文字列`escaped`を用いて`page.Locator($"[data-testid='{FormTestIds.RadioOption}'][value='{escaped}']").CheckAsync()`（値に`'`・`\`が含まれてもCSSセレクタが壊れないようにするため）
 - **例外/エラー時の挙動**:
   - `page`が`null`の場合: `ArgumentNullException`
   - `value`が`null`の場合: 例外を投げず即座に完了する（no-op）
+  - `value`に制御文字（改行等、`char.IsControl`が真となる文字）が含まれる場合: CSSセレクタを壊すため`ArgumentException`をthrowする（ブラウザ操作は行わない）
   - `value`に一致するラジオボタンが存在しない場合: Playwrightの標準例外（`TimeoutException`、対象要素が見つからない）がそのままthrowされる
 - **対応要件**: REQ-08
 
@@ -320,20 +334,23 @@ FUNC-27〜28はデータ構造（3節）に内包されるため、以降の詳�
 
 ### FUNC-38: ClickSubmitButtonAsync
 
-- **責務**: 送信ボタン（`data-testid="submit-button"`）をクリックする。
+- **責務**: 送信ボタン（`data-testid="submit-button"`）をクリックし、COMP-01側の送信処理が完了するまで待機する。
 - **引数**: `page: IPage`
-- **戻り値**: `Task`
-- **副作用**: あり — `page.Locator(FormTestIds.SubmitButton).ClickAsync()`。COMP-01 FUNC-07（`handleSubmitButtonClick`）が起動し、POSTリクエストが発行される
-- **例外/エラー時の挙動**: `page`が`null`の場合`ArgumentNullException`。要素未検出時は`TimeoutException`
+- **戻り値**: `Task`（送信処理の完了後に完了する）
+- **副作用**: あり — 次の順で処理する（FUNC-39と共通の内部処理`ClickAndWaitForCompletionAsync`）。
+  1. form要素（`page.GetByTestId(FormTestIds.Form)`、`data-testid="form"`）の`data-request-count`属性の現在値を記録する（属性がなければ`"0"`とみなす）
+  2. `page.GetByTestId(FormTestIds.SubmitButton).ClickAsync()`。COMP-01 FUNC-07（`handleSubmitButtonClick`）が起動し、POSTリクエストが発行される
+  3. `Assertions.Expect(form).Not.ToHaveAttributeAsync("data-request-count", <記録値>)`により、属性値が変化する（COMP-01 FUNC-09が処理完了時に1増やす）まで自動リトライ付きで待機する（固定時間のsleepは使わない）
+- **例外/エラー時の挙動**: `page`が`null`の場合`ArgumentNullException`。要素未検出時は`TimeoutException`。既定タイムアウト内に`data-request-count`が変化しない場合は、Playwrightのアサーション失敗（`PlaywrightException`）がそのままthrowされる
 - **対応要件**: REQ-08
 
 ### FUNC-39: ClickLoadButtonAsync
 
-- **責務**: 読み込みボタン（`data-testid="load-button"`）をクリックする。
+- **責務**: 読み込みボタン（`data-testid="load-button"`）をクリックし、COMP-01側の読み込み処理が完了するまで待機する。
 - **引数**: `page: IPage`
-- **戻り値**: `Task`
-- **副作用**: あり — `page.Locator(FormTestIds.LoadButton).ClickAsync()`。COMP-01 FUNC-08（`handleLoadButtonClick`）が起動し、GETリクエストが発行される
-- **例外/エラー時の挙動**: `page`が`null`の場合`ArgumentNullException`。要素未検出時は`TimeoutException`
+- **戻り値**: `Task`（読み込み処理の完了後に完了する）
+- **副作用**: あり — FUNC-38と同じ手順（`data-request-count`の記録→クリック→値の変化を待機）で、クリック対象を`page.GetByTestId(FormTestIds.LoadButton)`とする。COMP-01 FUNC-08（`handleLoadButtonClick`）が起動し、GETリクエストが発行される
+- **例外/エラー時の挙動**: FUNC-38と同じ
 - **対応要件**: REQ-08
 
 ### FUNC-40: SetFormValuesAsync

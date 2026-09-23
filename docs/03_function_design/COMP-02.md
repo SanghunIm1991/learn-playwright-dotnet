@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-02: バックエンドAPI／HTTP層） |
-| 版数 | v1.7 |
+| 版数 | v1.8 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント） |
 
@@ -21,6 +21,7 @@
 | v1.5 | 2026-09-23 | COMP-05との整合性確保のためNFR-02の実装位置・申し送り記述を修正（ホスト固定を条件にポート明示指定を許容する旨を明確化）。COMP-05レビュー（FUNC-43: テストフィクスチャのサーバー起動処理が固定ポート`ServerConfig.BaseUrl`での待受のため`--urls`/`ASPNETCORE_URLS`でポートを明示指定する設計）との文言上の矛盾を解消するため、2.1節のNFR-02行を「NFR-02が禁止するのはlocalhost以外のホスト・外部ネットワークインターフェースへのバインドであり、ホストをlocalhostに固定したままのポート明示指定はこれに抵触しない」旨に修正した。FUNC-16/17・4節・7節等、NFR-02以外の記述（シグネチャ・引数・戻り値・排他制御・SaveResult契約を含む）は変更していない | ClaudeCode |
 | v1.6 | 2026-09-23 | 再承認レビュー指摘3件対応。(1) 重大: 2.1節のNFR-02行に、要件文言「既定の設定で」という限定句についての検討を追記（明示的なポート指定はKestrel既定動作そのものではなく設定変更にあたる点を認めた上で、NFR-02の本質的要求は「既定の設定に手を触れないこと」自体ではなく「外部公開の防止」であるため、ホストをlocalhostに固定したままのポート指定は目的に照らして許容可能な範囲の設定変更と判断する旨を明記）。(2) 重大: 2.1節「実装工程で確認すべき対象」に、`--urls`/`ASPNETCORE_URLS`のホスト部分で`+`・`*`等のワイルドカード指定（例: `http://+:5080`、`http://*:5080`）を用いないことを禁止事項として明記。(3) 軽微: `docs/qa_log.md`にv1.5のNFR-02解釈変更（COMP-05との整合性確保のためホスト固定を条件にポート明示指定を許容する方針への変更）を追記。FUNC-16/17・4節・7節等、NFR-02以外の記述は変更していない | ClaudeCode |
 | v1.7 | 2026-09-23 | 実装工程での差分を反映（詳細は`docs/qa_log.md`・`docs/review_log.md`実装レビュー参照）。(1) FUNC-18: 引数に保存先ディレクトリ`dataDirectory`を追加（COMP-03の`baseDirectory`をクロージャで固定する結線をFUNC-18内で行うため。空の場合`ArgumentException`）。POSTは`Content-Type: application/json`以外を415、64K文字超のボディを413で拒否する（FUNC-16呼び出し前のアダプタ層での拒否）。(2) FUNC-16手順3の400はデシリアライズ例外（`JsonException`等）に限る。それ以外の想定外例外は500。(3) FUNC-17: `found:true`かつ`data:null`（契約違反）は500。(4) Cookieに`SameSite=Lax`を付与。(5) NFR-02: 起動後に`IServerAddressesFeature`のバインドアドレスを全件ログ出力し、ループバック以外を含む場合は停止する`LoopbackBindingCheck`を実装。既知の限界: 確認はバインド後のため、非ループバック設定時は停止までのごく短時間だけ待ち受けが発生し得る。(6) FUNC-14は同期版（`SemaphoreSlim.Wait`）で実装。既知の限界: ロック辞書の要素は削除しないため、Cookieなしのリクエストごとに要素が増える（ローカル学習用途のため許容） | ClaudeCode |
+| v1.8 | 2026-09-24 | v1.7の変更を本文に反映（実装の2回目レビュー指摘対応）。2.1節（415/413・NFR-02のバインド確認）、FUNC-11（Cookie属性）、FUNC-16（戻り値・400をデシリアライズ例外に限定・415/413は呼び出し前に拒否）、FUNC-17（`found:true`かつ`data:null`時の500）、FUNC-18（引数`dataDirectory`と空時の`ArgumentException`、415/413の事前拒否、`SameSite=Lax`）を更新。FUNC-18にボディを`charset`によらずUTF-8（BOM優先）で読む旨を注記（2回目レビュー軽微指摘） | ClaudeCode |
 
 ## 2. 対応コンポーネント
 
@@ -39,9 +40,9 @@
 | 対応するJSONファイルが存在しない場合のHTTPステータスコード（COMP-01 FUNC-04が暫定404と仮定） | **404 Not Found に確定する**（本文なし）。COMP-01側の仮定と一致するため、COMP-01側の追随修正は不要。 |
 | 排他制御・ロックの要否（コンポーネント設計書5.4節の申し送り事項） | **対応する**。COMP-02のHTTPハンドラ層でユーザー識別文字列単位の排他ロックを行う。詳細は4節。 |
 | POST成功時のHTTPステータスコード | 200 OK（本文なし）に確定する。 |
-| POST時の入力値検証エラー・GET/POST共通の想定外エラーのHTTPステータスコード | 検証エラー（COMP-03が`{success: false}`を返す場合）およびリクエストボディのJSON構文エラーは400 Bad Request、COMP-03側の未処理例外等は500 Internal Server Errorに確定する。 |
+| POST時の入力値検証エラー・GET/POST共通の想定外エラーのHTTPステータスコード | 検証エラー（COMP-03が`{success: false}`を返す場合）およびリクエストボディのデシリアライズ例外（JSON構文エラー等）は400 Bad Request、COMP-03側の未処理例外等は500 Internal Server Errorに確定する。加えて、FUNC-16呼び出し前にFUNC-18が`Content-Type`非JSONを415、64K文字超のボディを413で拒否する（v1.7で追加。FUNC-18参照）。 |
 | ユーザー識別用Cookieの名前 | `lp_user_id` に確定する（他コンポーネントに影響しない実装細部のため独自判断とする）。 |
-| NFR-02（ローカルホスト限定）の実装位置と実装工程への申し送り | Kestrel起動設定（`Program.cs`等）の既定設定（localhost限定）で充足される。FUNC-10〜18のいずれのハンドラ関数の責務でもない横断的要件である。**NFR-02要件文言の検討（「既定の設定で」という限定句について）**: 要件定義書v1.2のNFR-02本文は「サーバーは既定の設定でローカルホスト（localhost / 127.0.0.1）のみで待ち受け、外部ネットワークインターフェースからの接続を前提としない構成であること」であり、「既定の設定で」という限定句と「外部インターフェースからの接続を前提としない」という結果の2要素から成る。`--urls`/`ASPNETCORE_URLS`によるポートの明示指定は、Kestrelの既定動作（設定を一切行わない場合の挙動）そのものではなく、明示的な設定変更にあたる点は認める。しかしNFR-02の趣旨は「外部公開を防ぐこと」であり、「既定の設定に一切手を触れないこと」自体を目的とはしていない（要件定義書NFR-02本文の結果部分、およびこのPC（機微な情報も扱う個人の開発PC）のセキュリティ方針を踏まえ、外部公開の防止こそが本質的要求である）。したがって、ホストをlocalhostに固定したままのポート指定は、NFR-02の目的（外部非公開）を損なわず、かつCOMP-05のテスト自動化（FUNC-43の固定ポート待受ニーズ）に必要な固定ポート接続を実現する、目的に照らして許容可能な範囲の設定変更と判断する。NFR-02が禁止するのは**ホストをlocalhost（`127.0.0.1`/`localhost`）以外に変更すること（`0.0.0.0`等、外部ネットワークインターフェースへのバインド）**であり、ホストをlocalhostに固定したままポート番号を明示指定する設定変更（例: `--urls=http://localhost:<port>`、環境変数`ASPNETCORE_URLS=http://localhost:<port>`）はこれに抵触しない。むしろCOMP-05（Playwrightテストシナリオ）のFUNC-43がテスト実行時にサーバーを既知の固定ポート（`ServerConfig.BaseUrl`）で待ち受けさせる必要があるため、上記の方式で明示的にポートを指定してよい。実装工程で確認すべき対象は「`UseUrls`等の設定変更を一切行わないこと」ではなく、**「ホストが常にlocalhost（127.0.0.1）に固定され、`0.0.0.0`や外部アドレスへのバインドを行っていないこと」**である。**禁止事項の明示（ワイルドカードホスト指定）**: `--urls`/`ASPNETCORE_URLS`で指定するホスト部分は必ず`localhost`または`127.0.0.1`の明示的な文字列とし、`+`（すべてのホスト名を受け付けるワイルドカード）や`*`（すべてのIPアドレスを受け付けるワイルドカード）などのワイルドカード指定（例: `http://+:5080`、`http://*:5080`）を用いないこと。ポート番号のみ明示指定するつもりでホスト部分にワイルドカードを混入させると、意図せず外部ネットワークインターフェースへ公開してしまいNFR-02に抵触するため、実装工程で確認すべき対象に含める。 |
+| NFR-02（ローカルホスト限定）の実装位置と実装工程への申し送り | Kestrel起動設定（`Program.cs`等）の既定設定（localhost限定）で充足される。FUNC-10〜18のいずれのハンドラ関数の責務でもない横断的要件である。**NFR-02要件文言の検討（「既定の設定で」という限定句について）**: 要件定義書v1.2のNFR-02本文は「サーバーは既定の設定でローカルホスト（localhost / 127.0.0.1）のみで待ち受け、外部ネットワークインターフェースからの接続を前提としない構成であること」であり、「既定の設定で」という限定句と「外部インターフェースからの接続を前提としない」という結果の2要素から成る。`--urls`/`ASPNETCORE_URLS`によるポートの明示指定は、Kestrelの既定動作（設定を一切行わない場合の挙動）そのものではなく、明示的な設定変更にあたる点は認める。しかしNFR-02の趣旨は「外部公開を防ぐこと」であり、「既定の設定に一切手を触れないこと」自体を目的とはしていない（要件定義書NFR-02本文の結果部分、およびこのPC（機微な情報も扱う個人の開発PC）のセキュリティ方針を踏まえ、外部公開の防止こそが本質的要求である）。したがって、ホストをlocalhostに固定したままのポート指定は、NFR-02の目的（外部非公開）を損なわず、かつCOMP-05のテスト自動化（FUNC-43の固定ポート待受ニーズ）に必要な固定ポート接続を実現する、目的に照らして許容可能な範囲の設定変更と判断する。NFR-02が禁止するのは**ホストをlocalhost（`127.0.0.1`/`localhost`）以外に変更すること（`0.0.0.0`等、外部ネットワークインターフェースへのバインド）**であり、ホストをlocalhostに固定したままポート番号を明示指定する設定変更（例: `--urls=http://localhost:<port>`、環境変数`ASPNETCORE_URLS=http://localhost:<port>`）はこれに抵触しない。むしろCOMP-05（Playwrightテストシナリオ）のFUNC-43がテスト実行時にサーバーを既知の固定ポート（`ServerConfig.BaseUrl`）で待ち受けさせる必要があるため、上記の方式で明示的にポートを指定してよい。実装工程で確認すべき対象は「`UseUrls`等の設定変更を一切行わないこと」ではなく、**「ホストが常にlocalhost（127.0.0.1）に固定され、`0.0.0.0`や外部アドレスへのバインドを行っていないこと」**である。**実装（v1.7）**: `Program.cs`は`urls`未設定時に`http://localhost:5080`で待ち受け、起動後に実バインドアドレス（`IServerAddressesFeature`）を全件ログ出力し、ループバック以外を含む場合（またはアドレスが0件の場合）は`LoopbackBindingCheck`の判定により直ちに停止する。既知の限界: 確認はバインド後のため、非ループバック設定時は停止までのごく短時間だけ待ち受けが発生し得る。**禁止事項の明示（ワイルドカードホスト指定）**: `--urls`/`ASPNETCORE_URLS`で指定するホスト部分は必ず`localhost`または`127.0.0.1`の明示的な文字列とし、`+`（すべてのホスト名を受け付けるワイルドカード）や`*`（すべてのIPアドレスを受け付けるワイルドカード）などのワイルドカード指定（例: `http://+:5080`、`http://*:5080`）を用いないこと。ポート番号のみ明示指定するつもりでホスト部分にワイルドカードを混入させると、意図せず外部ネットワークインターフェースへ公開してしまいNFR-02に抵触するため、実装工程で確認すべき対象に含める。 |
 
 ## 3. 型定義（関数一覧の前提）
 
@@ -134,7 +135,7 @@ CookieWriteOptions = {
 
 ### FUNC-11: IssueUserIdCookie
 
-- **責務**: FUNC-10で新規発行されたユーザー識別文字列を、HTTPレスポンスのSet-Cookieヘッダーとして付与する。付与にあたっては`CookieWriteOptions`（`{ httpOnly: true, path: "/", maxAge: 31536000 }`〈`maxAge`は3節の方針に基づく暫定値=1年。具体値は実装工程で最終確定する〉）を組み立て、`setCookieFn`へ渡す。
+- **責務**: FUNC-10で新規発行されたユーザー識別文字列を、HTTPレスポンスのSet-Cookieヘッダーとして付与する。付与にあたっては`CookieWriteOptions`（`{ httpOnly: true, path: "/", maxAge: 31536000 }`〈`maxAge`は3節の方針に基づく暫定値=1年。具体値は実装工程で最終確定する〉）を組み立て、`setCookieFn`へ渡す（実装では`maxAge`=31536000秒〈1年〉で確定。`SameSite=Lax`は`CookieWriteOptions`に含めず、`setCookieFn`の実装〈FUNC-18〉側で付与する）。
 - **引数**:
   - `userId: string` — 発行するユーザー識別文字列
   - `setCookieFn: (name: string, value: string, options: CookieWriteOptions) -> void` — 実際にレスポンスへCookieを付与する関数（本番実装ではASP.NET Coreの`HttpResponse.Cookies.Append`相当をラップしたものを注入し、単体テスト時はモック関数を注入する）
@@ -199,18 +200,20 @@ CookieWriteOptions = {
   - `requestBodyJson: string` — POSTリクエストボディの生JSON文字列
   - `deps: { saveFormData: (userId: string, data: FormDataDto) -> SaveResult, setCookieFn?: (...) -> void, idGenerator?: () -> string }` — 依存オブジェクト。`saveFormData`はCOMP-03への委譲呼び出し（必須）。`setCookieFn`・`idGenerator`は省略可でテスト時にモックを注入できるようにする
 - **戻り値**: `{ statusCode: number }`（200 | 400 | 500 のいずれか。Cookie発行自体は`deps.setCookieFn`呼び出しを通じた副作用として行われるため、戻り値には含めない＝副作用と戻り値を分離する）
+  - 400を返すのは、手順3のデシリアライズ例外（`JsonException`・`NotSupportedException`・`requestBodyJson`が`null`の場合の`ArgumentNullException`）と、手順8（`success:false`＝検証エラー）の場合に限る。それ以外の想定外例外はすべて500とする
+  - 415（`Content-Type`が`application/json`でない）・413（ボディが64K文字超）は本関数ではなく、呼び出し前にFUNC-18（アダプタ層）が返す。これらの場合、本関数は呼び出されない（Cookieも発行されない）
 - **副作用**: あり — FUNC-10・FUNC-11（新規発行時のみ）・FUNC-12・FUNC-14・FUNC-15・`deps.saveFormData`（COMP-03呼び出し、ファイルI/O発生）を介した間接的副作用
 - **処理順序（論理フロー）**: 手順1〜9全体を一つのtry-catchで囲み、いずれの手順で例外が送出されても（手順4以降でロックを取得済みの場合は手順6のfinally相当の解放処理を経た上で）呼び出し元へ再送出せず`{ statusCode }`を返す（手順ごとに定められたステータスコードを用いる。既定は500だが、手順3の入力解析エラーは400とする）ことで、「常に`{ statusCode }`を返す」という戻り値契約を満たす。
   1. FUNC-10でユーザー識別文字列を解決する。`idGenerator`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500 }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
-  2. `isNewlyIssued`が`true`の場合、FUNC-11でCookieを付与する。`setCookieFn`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500 }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
-  3. FUNC-12でリクエストボディを`FormDataDto`へ解析する。ここで例外が発生した場合は手順4以降を行わず`{ statusCode: 400 }`を返す
+  2. `isNewlyIssued`が`true`かつ`deps.setCookieFn`が指定されている場合、FUNC-11でCookieを付与する（`setCookieFn`省略時は付与を行わない）。`setCookieFn`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500 }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
+  3. FUNC-12でリクエストボディを`FormDataDto`へ解析する。ここでデシリアライズ例外（`JsonException`・`NotSupportedException`・`ArgumentNullException`）が発生した場合は手順4以降を行わず`{ statusCode: 400 }`を返す。それ以外の例外は外側のcatchで500として扱う
   4. FUNC-14でユーザー識別文字列に対するロックを取得する
   5. `deps.saveFormData(userId, dto)`を呼び出す（COMP-03への委譲）
   6. 手順5の成否・例外の有無にかかわらず、FUNC-15でロックを解放する（try-finally相当の構造とする）
   7. 手順5が例外をthrowした場合: `{ statusCode: 500 }`を返す
   8. 手順5が`{ success: false }`を返した場合: `{ statusCode: 400 }`を返す
   9. 手順5が`{ success: true }`を返した場合: `{ statusCode: 200 }`を返す
-- **例外/エラー時の挙動**: 上記処理順序の手順1・2・3・6・7に集約。手順1（`idGenerator`）・手順2（`setCookieFn`）の例外も手順7（`saveFormData`）の例外と同様にcatchして500として扱い、いずれの手順で例外が発生しても呼び出し元（FUNC-18）へは例外を再送出せず、常に`{ statusCode }`を返す
+- **例外/エラー時の挙動**: `deps`が`null`の場合は`ArgumentNullException`をthrowする（プログラミング上の誤用のためstatusCodeに変換しない）。それ以外は上記処理順序の手順1・2・3・6・7に集約。手順1（`idGenerator`）・手順2（`setCookieFn`）の例外も手順7（`saveFormData`）の例外と同様にcatchして500として扱い、いずれの手順で例外が発生しても呼び出し元（FUNC-18）へは例外を再送出せず、常に`{ statusCode }`を返す
 - **対応要件**: REQ-02, REQ-03, REQ-06, NFR-06, CON-01, CON-03, CON-05（NFR-02は横断的要件のため対応要件欄には明記しない。理由は2.1節・7節参照）
 
 ### FUNC-17: HandleGetFormData
@@ -220,30 +223,37 @@ CookieWriteOptions = {
   - `cookieValue: string | null`
   - `deps: { loadFormData: (userId: string) -> LoadResult, setCookieFn?: (...) -> void, idGenerator?: () -> string }` — `loadFormData`はCOMP-03への委譲呼び出し（必須）
 - **戻り値**: `{ statusCode: number, bodyJson: string | null }`
-  - `statusCode`: 200（存在する）| 404（存在しない）| 500（COMP-03側の未処理例外等）
+  - `statusCode`: 200（存在する）| 404（存在しない）| 500（COMP-03側の未処理例外、または`found:true`かつ`data:null`という契約違反の戻り値等）
   - `bodyJson`: `statusCode: 200`の場合のみFUNC-13でシリアライズしたJSON文字列。それ以外は`null`（レスポンス本文なし）
 - **副作用**: あり — FUNC-10・FUNC-11（新規発行時のみ）・FUNC-14・FUNC-15・`deps.loadFormData`（COMP-03呼び出し、ファイル読み取りI/O）を介した間接的副作用
 - **処理順序（論理フロー）**: 手順1〜8全体を一つのtry-catchで囲み、いずれの手順で例外が送出されても（手順3以降でロックを取得済みの場合は手順5のfinally相当の解放処理を経た上で）呼び出し元へ再送出せず`{ statusCode: 500, bodyJson: null }`を返すことで、「常に`{ statusCode }`を返す」という戻り値契約を満たす。
   1. FUNC-10でユーザー識別文字列を解決する。`idGenerator`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500, bodyJson: null }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
-  2. `isNewlyIssued`が`true`の場合、FUNC-11でCookieを付与する（新規発行時は対応ファイルが存在しないため、後述の手順4は必ず「存在しない」分岐に合流する。コンポーネント設計書4.3節の通り）。`setCookieFn`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500, bodyJson: null }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
+  2. `isNewlyIssued`が`true`かつ`deps.setCookieFn`が指定されている場合、FUNC-11でCookieを付与する（新規発行時は対応ファイルが存在しないため、後述の手順4は必ず「存在しない」分岐に合流する。コンポーネント設計書4.3節の通り）。`setCookieFn`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500, bodyJson: null }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
   3. FUNC-14でユーザー識別文字列に対するロックを取得する
   4. `deps.loadFormData(userId)`を呼び出す（COMP-03への委譲）
   5. 手順4の成否・例外の有無にかかわらず、FUNC-15でロックを解放する
   6. 手順4が例外をthrowした場合: `{ statusCode: 500, bodyJson: null }`を返す
   7. 手順4が`{ found: false, data: null }`を返した場合: `{ statusCode: 404, bodyJson: null }`を返す
-  8. 手順4が`{ found: true, data }`を返した場合: FUNC-13で`data`をJSON文字列化し、`{ statusCode: 200, bodyJson: <JSON文字列> }`を返す
-- **例外/エラー時の挙動**: 上記処理順序の手順1・2・5・6に集約。手順1（`idGenerator`）・手順2（`setCookieFn`）の例外も手順6（`loadFormData`）の例外と同様にcatchして500として扱い、いずれの手順で例外が発生しても呼び出し元（FUNC-18）へは例外を再送出しない
+  8. 手順4が`{ found: true, data }`を返した場合: `data`が`null`（`LoadResult`の契約「found:trueの場合のみ非null」への違反）なら`{ statusCode: 500, bodyJson: null }`を返す。非`null`ならFUNC-13で`data`をJSON文字列化し、`{ statusCode: 200, bodyJson: <JSON文字列> }`を返す
+- **例外/エラー時の挙動**: `deps`が`null`の場合は`ArgumentNullException`をthrowする（FUNC-16と同様）。それ以外は上記処理順序の手順1・2・5・6・8（契約違反）に集約。手順1（`idGenerator`）・手順2（`setCookieFn`）の例外も手順6（`loadFormData`）の例外と同様にcatchして500として扱い、いずれの手順で例外が発生しても呼び出し元（FUNC-18）へは例外を再送出しない
 - **対応要件**: REQ-04（復元用データの提供）, REQ-06, NFR-06, CON-01, CON-03, CON-05（NFR-02の除外理由はFUNC-16と同様。詳細は2.1節・7節参照）
 
 ### FUNC-18: MapFormDataEndpoints
 
 - **責務**: ASP.NET Coreのルーティングに`POST /api/form-data`・`GET /api/form-data`エンドポイントを登録し、各リクエストをFUNC-16・FUNC-17へ橋渡しする。HttpContextからのCookie値・リクエストボディの抽出、およびFUNC-16/17の戻り値（`statusCode`・`bodyJson`）・Cookie発行副作用の実HTTPレスポンスへの反映を行う、ASP.NET Core APIとFUNC-16/17の間の薄いアダプタ層。
 - **引数**:
-  - `app: WebApplication`（または`IEndpointRouteBuilder`）
+  - `app: IEndpointRouteBuilder`（`WebApplication`を渡す）
+  - `dataDirectory: string` — 保存先ディレクトリの絶対パス（`Program.cs`が設定キー`DataDirectory`〈既定`App_Data`、ContentRoot基準〉から解決して渡す）。COMP-03の保存・読込関数（`baseDirectory`引数を持つ3引数/2引数版）を、この値を固定したクロージャで`deps.saveFormData`/`deps.loadFormData`の契約（userIdとdataのみ）へ合わせる結線を本関数内で行う
 - **戻り値**: なし
-- **副作用**: あり — アプリ起動時: ルーティングテーブルへのエンドポイント登録。各リクエスト処理時: `HttpContext.Request.Cookies`からの`lp_user_id`読み取り、`HttpContext.Request.Body`からのリクエストボディ読み取り、FUNC-16/17呼び出し、`HttpContext.Response.Cookies.Append`呼び出し（`setCookieFn`の実装として）、`HttpContext.Response.StatusCode`設定、レスポンス本文書き込み
+- **副作用**: あり — アプリ起動時: ルーティングテーブルへのエンドポイント登録。各リクエスト処理時: `HttpContext.Request.Cookies`からの`lp_user_id`読み取り、`HttpContext.Request.Body`からのリクエストボディ読み取り、FUNC-16/17呼び出し、`HttpContext.Response.Cookies.Append`呼び出し（`setCookieFn`の実装として）、`HttpContext.Response.StatusCode`設定、レスポンス本文書き込み（GETの200時は`Content-Type: application/json; charset=utf-8`）
+- **POSTリクエストの事前拒否（FUNC-16呼び出し前）**:
+  1. `Content-Type`が`application/json`（または`+json`サフィックス付きのJSON系メディアタイプ。ASP.NET Coreの`HasJsonContentType()`で判定）でない場合: 415 Unsupported Media Typeを返し、FUNC-16を呼び出さない（他サイトからCORSプリフライト不要な「単純リクエスト」でPOSTされることを防ぐため）
+  2. ボディが`MaxRequestBodyChars`（64×1024＝65,536文字）を超える場合: 413 Payload Too Largeを返し、FUNC-16を呼び出さない。`Content-Length`が「上限文字数×4バイト」（UTF-8の1文字最大4バイト）を超える場合は読み取り前に拒否し、それ以外は上限＋1文字まで読み取って超過を判定する
+  - **文字コードの扱い（注記）**: ボディの読み取りは`Content-Type`の`charset`パラメータを参照せず、常にUTF-8として読む（先頭にBOMがある場合はBOMの示す文字コードを優先する。.NETの`StreamReader`既定動作）。UTF-8以外の`charset`を指定したリクエストは文字化けし、FUNC-12のデシリアライズ結果や検証結果が意図と異なり得る。本システムのクライアント（COMP-01）は常にUTF-8のJSONを送るため許容する
+- **Cookie属性**: `setCookieFn`の実装では、FUNC-11が組み立てた`CookieWriteOptions`（HttpOnly・Path・MaxAge）に加えて`SameSite=Lax`を付与する（他サイトからのリクエストにCookieを送らせないCSRF緩和策）
 - **例外/エラー時の挙動**:
   - 登録時（アプリ起動時）に`app`が`null`の場合: `ArgumentNullException`をthrowする
+  - 登録時に`dataDirectory`が`null`または空文字列の場合: `ArgumentException`をthrowする
   - 個々のリクエスト処理中に発生する業務上の例外はFUNC-16/17が内部でcatchし`statusCode`として表現するため、本関数まで伝播しない
   - COMP-03のDI解決失敗等、FUNC-16/17に到達する前の想定外例外は本関数ではcatchせず、ASP.NET Coreの既定の例外処理ミドルウェアに委ねる（既定で500として扱われる）
 - **対応要件**: REQ-02, REQ-03, REQ-04, REQ-06, CON-01, CON-03
