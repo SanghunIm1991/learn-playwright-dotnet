@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-02: バックエンドAPI／HTTP層） |
-| 版数 | v1.3 |
+| 版数 | v1.4 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント） |
 
@@ -17,11 +17,12 @@
 | v1.1 | 2026-09-23 | 論理レビュー指摘対応: FUNC-13/17の対応要件からREQ-05（COMP-01専属要件）を削除、FUNC-14のロックget-or-create操作の原子性を明記、FUNC-16/17の手順1(FUNC-10)・手順2(FUNC-11)の例外処理を追記、CookieWriteOptions.maxAgeのnull＝永続Cookieという誤った説明を修正、SaveResult.success:falseの契約（検証エラー専用）を明記、FUNC-14/15の対応要件からNFR-02を削除 | ClaudeCode |
 | v1.2 | 2026-09-23 | 論理レビュー2回目指摘対応: FUNC-16の処理順序冒頭要約「いずれの手順の例外も500」が手順3（例外は400）と矛盾していた記述を「手順ごとに定められたステータス（既定500、手順3は400）」に修正、FUNC-11の責務にCookieWriteOptions（maxAge:31536000〈暫定値〉等）の組み立てとsetCookieFnへの受け渡しを明記、FUNC-16/17の対応要件欄からNFR-02を削除しCON-06/07と同様の横断的要件（関数ごとの欄には明記しない）として統一、7節の自己チェック説明を上記方針に合わせて調整 | ClaudeCode |
 | v1.3 | 2026-09-23 | NFR-02の実装工程への申し送りを2.1節に明記（軽微指摘対応） | ClaudeCode |
+| v1.4 | 2026-09-23 | 可読性向上（内容変更なし）。関数名・引数・戻り値・副作用・例外仕様・対応ID・数値・判断内容・契約は変更せず、(1) NFR-02を対応要件欄から除外する理由が2.1節・FUNC-14・FUNC-16・FUNC-17・7節に重複して記述されていたため、2.1節を正としFUNC-16/17・7節の記述を簡潔な相互参照へ整理、(2) `CookieWriteOptions.maxAge`の説明コメントを1行の長文から複数行構成に整理、(3) 2節の対応要件ID一覧を機能要件／非機能要件／制約の区分ラベル付きに整理、(4) 6節のMermaid図にCOMP-03（別コンポーネント）のサブグラフ区分を追加 | ClaudeCode |
 
 ## 2. 対応コンポーネント
 
 - 対象コンポーネント: **COMP-02（バックエンドAPI／HTTP層）**
-- 対応要件ID（コンポーネント設計書 v1.3 3節より）: REQ-02, REQ-03, REQ-04, REQ-06 / NFR-02, NFR-06 / CON-01, CON-03, CON-05, CON-06, CON-07
+- 対応要件ID（コンポーネント設計書 v1.3 3節より）: 機能要件 REQ-02, REQ-03, REQ-04, REQ-06／非機能要件 NFR-02, NFR-06／制約 CON-01, CON-03, CON-05, CON-06, CON-07
 - 実装技術: C# / .NET 10 / ASP.NET Core（CON-03）
 
 業務ロジック（入力値検証・JSON変換・保存/復元処理そのもの）はCOMP-03の責務であり、COMP-02はHTTPリクエスト/レスポンスの処理（Cookie読み取り・発行、ステータスコード決定、リクエストボディのパース）とCOMP-03への処理委譲に専念する（品質方針・NFR-06）。
@@ -73,7 +74,13 @@ LoadResult = {
 CookieWriteOptions = {
   httpOnly: bool,     // true固定を想定（JavaScriptからの読み取りを許容しない。実装工程で最終確認）
   path:     string,   // "/" を想定
-  maxAge:   number | null  // Cookieの有効期間（秒）。null（MaxAge/Expires属性を付与しない）は実際にはセッションCookie（ブラウザを閉じると消える）を意味し、永続Cookieにはならない点に注意する。REQ-06によるユーザー識別の継続（再訪問時も同一ユーザー識別文字列を維持する実効性）にはブラウザを閉じた後も値が保持される永続Cookieが必要であるため、本設計ではnullではなく具体的な有効期間を既定値とする方針とし、暫定値として1年（31536000秒）を置く。具体値は実装工程で最終確定する
+  maxAge:   number | null
+  // Cookieの有効期間（秒）。
+  // 【注意】null（MaxAge/Expires属性を付与しない）は実際にはセッションCookie（ブラウザを閉じると消える）を
+  // 意味し、永続Cookieにはならない点に注意する。
+  // REQ-06によるユーザー識別の継続（再訪問時も同一ユーザー識別文字列を維持する実効性）には、ブラウザを
+  // 閉じた後も値が保持される永続Cookieが必要である。そのため本設計ではnullではなく具体的な有効期間を
+  // 既定値とする方針とし、暫定値として1年（31536000秒）を置く（具体値は実装工程で最終確定する）。
 }
 ```
 
@@ -201,7 +208,7 @@ CookieWriteOptions = {
   8. 手順5が`{ success: false }`を返した場合: `{ statusCode: 400 }`を返す
   9. 手順5が`{ success: true }`を返した場合: `{ statusCode: 200 }`を返す
 - **例外/エラー時の挙動**: 上記処理順序の手順1・2・3・6・7に集約。手順1（`idGenerator`）・手順2（`setCookieFn`）の例外も手順7（`saveFormData`）の例外と同様にcatchして500として扱い、いずれの手順で例外が発生しても呼び出し元（FUNC-18）へは例外を再送出せず、常に`{ statusCode }`を返す
-- **対応要件**: REQ-02, REQ-03, REQ-06, NFR-06, CON-01, CON-03, CON-05（NFR-02〈ローカルホスト限定〉はASP.NET Core起動設定側の横断的要件のため、CON-06/07と同様に個別関数の対応要件欄には明記しない。詳細は7節参照）
+- **対応要件**: REQ-02, REQ-03, REQ-06, NFR-06, CON-01, CON-03, CON-05（NFR-02は横断的要件のため対応要件欄には明記しない。理由は2.1節・7節参照）
 
 ### FUNC-17: HandleGetFormData
 
@@ -223,7 +230,7 @@ CookieWriteOptions = {
   7. 手順4が`{ found: false, data: null }`を返した場合: `{ statusCode: 404, bodyJson: null }`を返す
   8. 手順4が`{ found: true, data }`を返した場合: FUNC-13で`data`をJSON文字列化し、`{ statusCode: 200, bodyJson: <JSON文字列> }`を返す
 - **例外/エラー時の挙動**: 上記処理順序の手順1・2・5・6に集約。手順1（`idGenerator`）・手順2（`setCookieFn`）の例外も手順6（`loadFormData`）の例外と同様にcatchして500として扱い、いずれの手順で例外が発生しても呼び出し元（FUNC-18）へは例外を再送出しない
-- **対応要件**: REQ-04（復元用データの提供）, REQ-06, NFR-06, CON-01, CON-03, CON-05（NFR-02〈ローカルホスト限定〉はASP.NET Core起動設定側の横断的要件のため、CON-06/07と同様に個別関数の対応要件欄には明記しない。詳細は7節参照）
+- **対応要件**: REQ-04（復元用データの提供）, REQ-06, NFR-06, CON-01, CON-03, CON-05（NFR-02の除外理由はFUNC-16と同様。詳細は2.1節・7節参照）
 
 ### FUNC-18: MapFormDataEndpoints
 
@@ -251,8 +258,11 @@ flowchart TD
     SERIALIZE["FUNC-13<br/>SerializeFormDataToJson"]
     LOCK["FUNC-14<br/>AcquireUserLock"]
     UNLOCK["FUNC-15<br/>ReleaseUserLock"]
-    COMP03SAVE["COMP-03<br/>保存処理（deps.saveFormData）"]
-    COMP03LOAD["COMP-03<br/>読込処理（deps.loadFormData）"]
+
+    subgraph COMP03["COMP-03（別コンポーネント／DI経由の間接呼び出し）"]
+        COMP03SAVE["保存処理（deps.saveFormData）"]
+        COMP03LOAD["読込処理（deps.loadFormData）"]
+    end
 
     MAP -- "POSTリクエストを橋渡し" --> POST
     MAP -- "GETリクエストを橋渡し" --> GET
@@ -281,5 +291,5 @@ flowchart TD
 
 - **テストケース設計への転用可能性**: 各関数の引数・戻り値・例外条件を表形式で明示しており、境界値（Cookie未設定/空文字列、JSON構文エラー、`success:false`、`found:false`、ロック取得中の例外等）をそのままテストケースの入力・期待値として転用できる粒度とした。
 - **副作用とロジックの分離、COMP-03への委譲の明確さ**: FUNC-10・FUNC-12・FUNC-13は副作用なし（純粋関数）。FUNC-11・FUNC-14・FUNC-15は単一の副作用（Cookie書き込み／ロック操作）のみを持つ。FUNC-16・FUNC-17はCOMP-03の保存/読込処理を`deps`引数経由の間接呼び出しとして受け取り、COMP-03の内部実装（ファイルI/O・JSON変換・検証ロジック）には一切立ち入らない。
-- **責務網羅性**: REQ-02（POST受付・COMP-03への委譲）、REQ-03（保存要求のHTTP受付）、REQ-04（GET受付・未存在判定の反映）、REQ-06（Cookie読取・新規発行）、NFR-06（HTTP層とロジック層の分離。FUNC-16/17と`deps`によるDI分離で充足）、CON-01/03/05（ローカル実行・C#/.NET 10・ASP.NET Core・認証機構なしを前提とした設計）を過不足なくカバーしていることを確認した。NFR-02（ローカルホスト限定）・CON-06/07（秘密情報・個人情報の非混入）は、いずれも個別関数固有の設計事項ではなく横断的な要件・規約であるため、関数ごとの対応要件欄には明記していない。NFR-02はKestrel起動設定（`Program.cs`等、FUNC-18より前のホスティング構成層）で実現するものであり、本文書が扱うリクエストごとのハンドラ関数（FUNC-10〜18）のいずれの責務でもないため、FUNC-14/15に加えFUNC-16/17の対応要件欄からも除外し、CON-06/07と同じ扱いに統一した。
+- **責務網羅性**: REQ-02（POST受付・COMP-03への委譲）、REQ-03（保存要求のHTTP受付）、REQ-04（GET受付・未存在判定の反映）、REQ-06（Cookie読取・新規発行）、NFR-06（HTTP層とロジック層の分離。FUNC-16/17と`deps`によるDI分離で充足）、CON-01/03/05（ローカル実行・C#/.NET 10・ASP.NET Core・認証機構なしを前提とした設計）を過不足なくカバーしていることを確認した。NFR-02（ローカルホスト限定）・CON-06/07（秘密情報・個人情報の非混入）は、いずれも個別関数固有の設計事項ではなく横断的な要件・規約であるため、関数ごとの対応要件欄には明記していない（NFR-02の実装位置・除外理由の詳細は2.1節を参照。FUNC-14/15・FUNC-16/17を通じて統一した扱いとしている）。
 - **COMP-01 FUNC-04との整合性**: HTTPステータスコード404（対応ファイル未存在時）の採用で一致。COMP-01側の追随修正は不要と判断した（2.1節参照）。
