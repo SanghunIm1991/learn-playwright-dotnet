@@ -58,7 +58,7 @@ FormElements = {
 
 ## 4. 関数一覧
 
-設計方針（CLAUDE.md品質方針・NFR-06の考え方の準用）に基づき、DOM読み取り／DOM書き込み／通信処理／ロジック（値の変換等）を関数として明確に分離する。各関数は1種類の副作用（またはなし）のみを持つ。
+設計方針（CLAUDE.md品質方針・NFR-06の考え方の準用）に基づき、DOM読み取り／DOM書き込み／通信処理／ロジック（値の変換等）を関数として明確に分離する。各関数は1種類の副作用（またはなし）のみを持つ。ただし、`FormValues`の型（例: `slider: number`）を満たすために必要な最小限の型変換・値照合（例: FUNC-01でのスライダー値の`Number()`変換と`NaN`判定、FUNC-02でのselect/radioの選択肢値との照合）は、別関数へ切り出すほど独立したロジックではないため、DOM読み取り／DOM書き込み関数に含めてよいものとする。
 
 ### FUNC-01: collectFormValues
 
@@ -68,8 +68,8 @@ FormElements = {
 - **戻り値**: `FormValues`
 - **副作用**: なし（DOM要素のプロパティ読み取りのみ。書き込み・通信は行わない）
 - **例外/エラー時の挙動**:
-  - `elements`、または`elements.textInput` / `elements.slider` / `elements.select`のいずれかが`null`/`undefined`の場合: `TypeError`をthrowする
-  - `elements.radioButtons`が空配列、またはいずれの要素も`.checked === true`でない場合: 例外は投げず、戻り値の`radio`に`null`を設定する
+  - `elements`、または`elements.textInput` / `elements.slider` / `elements.select` / `elements.radioButtons`のいずれかが`null`/`undefined`の場合: `TypeError`をthrowする
+  - `elements.radioButtons`が（`null`/`undefined`ではなく）空配列、またはいずれの要素も`.checked === true`でない場合: 例外は投げず、戻り値の`radio`に`null`を設定する
   - `elements.slider.value`（文字列）を`Number()`で数値変換した結果が`NaN`になる場合: `Error`をthrowする
 - **対応要件**: REQ-02
 
@@ -143,7 +143,7 @@ FormElements = {
 - **戻り値**: なし
 - **副作用**: あり — `messageElement.textContent`を空文字列にし、種別ごとのCSSクラスを全て除去する
 - **例外/エラー時の挙動**: `messageElement`が`null`/`undefined`の場合: `TypeError`をthrowする
-- **対応要件**: REQ-05（復元後に前回メッセージが残存しないようにするための補助関数）
+- **対応要件**: REQ-05（復元操作に付随する補助処理としての位置づけ。REQ-05の要件文言はUIコントロールの値の復元を定めるものであり、メッセージ領域のクリアには直接言及していないが、復元前の画面初期化として必要な処理と判断し対応付けた。要件文言に対する拡大解釈である点に留意する）
 
 ### FUNC-07: handleSubmitButtonClick
 
@@ -182,7 +182,7 @@ FormElements = {
 - **戻り値**: なし
 - **副作用**: あり — `submitButton` / `loadButton`への`addEventListener('click', ...)`呼び出し（それぞれFUNC-07・FUNC-08をイベントハンドラとして登録する）
 - **例外/エラー時の挙動**: `deps.elements` / `deps.submitButton` / `deps.loadButton`のいずれかが`null`/`undefined`の場合: `TypeError`をthrowする（初期化失敗を早期に検知できるようにする）
-- **対応要件**: REQ-01（画面のインタラクティブ化）、REQ-02, REQ-04
+- **対応要件**: REQ-01（画面のインタラクティブ化）、REQ-02, REQ-04, REQ-05（FUNC-07・FUNC-08をイベントハンドラとして登録することで、FUNC-08が対応するREQ-04・REQ-05の双方を間接的に成立させるため）
 
 ## 5. 関数間の呼び出し関係
 
