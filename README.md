@@ -46,3 +46,7 @@ dotnet test
 | `docs/` | 要件定義〜テスト仕様書、トレーサビリティマトリックス |
 
 学習を始める場合は [`docs/tutorial/README.md`](docs/tutorial/README.md) から読み進めてください。
+
+## ライセンス
+
+[MIT License](LICENSE)
