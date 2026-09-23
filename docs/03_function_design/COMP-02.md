@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-02: バックエンドAPI／HTTP層） |
-| 版数 | v1.1 |
+| 版数 | v1.2 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント） |
 
@@ -15,6 +15,7 @@
 |---|---|---|---|
 | v1.0 | 2026-09-23 | 初版作成 | ClaudeCode |
 | v1.1 | 2026-09-23 | 論理レビュー指摘対応: FUNC-13/17の対応要件からREQ-05（COMP-01専属要件）を削除、FUNC-14のロックget-or-create操作の原子性を明記、FUNC-16/17の手順1(FUNC-10)・手順2(FUNC-11)の例外処理を追記、CookieWriteOptions.maxAgeのnull＝永続Cookieという誤った説明を修正、SaveResult.success:falseの契約（検証エラー専用）を明記、FUNC-14/15の対応要件からNFR-02を削除 | ClaudeCode |
+| v1.2 | 2026-09-23 | 論理レビュー2回目指摘対応: FUNC-16の処理順序冒頭要約「いずれの手順の例外も500」が手順3（例外は400）と矛盾していた記述を「手順ごとに定められたステータス（既定500、手順3は400）」に修正、FUNC-11の責務にCookieWriteOptions（maxAge:31536000〈暫定値〉等）の組み立てとsetCookieFnへの受け渡しを明記、FUNC-16/17の対応要件欄からNFR-02を削除しCON-06/07と同様の横断的要件（関数ごとの欄には明記しない）として統一、7節の自己チェック説明を上記方針に合わせて調整 | ClaudeCode |
 
 ## 2. 対応コンポーネント
 
@@ -99,8 +100,8 @@ CookieWriteOptions = {
 | FUNC-13 | `SerializeFormDataToJson` | レスポンス生成 | `FormDataDto`をGETレスポンス用のJSON文字列へ変換する | REQ-04 |
 | FUNC-14 | `AcquireUserLock` | 排他制御 | ユーザー識別文字列単位の排他ロックを取得する | NFR-06 |
 | FUNC-15 | `ReleaseUserLock` | 排他制御 | FUNC-14で取得したロックを解放する | NFR-06 |
-| FUNC-16 | `HandlePostFormData` | 統括（POSTエンドポイント処理） | POST処理（Cookie解決→ボディ解析→ロック→COMP-03保存委譲→ステータス決定）を統括する | REQ-02, REQ-03, REQ-06, NFR-02, NFR-06, CON-01, CON-03, CON-05 |
-| FUNC-17 | `HandleGetFormData` | 統括（GETエンドポイント処理） | GET処理（Cookie解決→ロック→COMP-03読込委譲→ステータス/本文決定）を統括する | REQ-04, REQ-06, NFR-02, NFR-06, CON-01, CON-03, CON-05 |
+| FUNC-16 | `HandlePostFormData` | 統括（POSTエンドポイント処理） | POST処理（Cookie解決→ボディ解析→ロック→COMP-03保存委譲→ステータス決定）を統括する | REQ-02, REQ-03, REQ-06, NFR-06, CON-01, CON-03, CON-05 |
+| FUNC-17 | `HandleGetFormData` | 統括（GETエンドポイント処理） | GET処理（Cookie解決→ロック→COMP-03読込委譲→ステータス/本文決定）を統括する | REQ-04, REQ-06, NFR-06, CON-01, CON-03, CON-05 |
 | FUNC-18 | `MapFormDataEndpoints` | 統括（ルーティング登録） | ASP.NET CoreルーティングへPOST/GETエンドポイントを登録し、HttpContextとFUNC-16/17を橋渡しする | REQ-02, REQ-03, REQ-04, REQ-06, CON-01, CON-03 |
 
 以降、各関数の詳細を記載する。
@@ -121,7 +122,7 @@ CookieWriteOptions = {
 
 ### FUNC-11: IssueUserIdCookie
 
-- **責務**: FUNC-10で新規発行されたユーザー識別文字列を、HTTPレスポンスのSet-Cookieヘッダーとして付与する。
+- **責務**: FUNC-10で新規発行されたユーザー識別文字列を、HTTPレスポンスのSet-Cookieヘッダーとして付与する。付与にあたっては`CookieWriteOptions`（`{ httpOnly: true, path: "/", maxAge: 31536000 }`〈`maxAge`は3節の方針に基づく暫定値=1年。具体値は実装工程で最終確定する〉）を組み立て、`setCookieFn`へ渡す。
 - **引数**:
   - `userId: string` — 発行するユーザー識別文字列
   - `setCookieFn: (name: string, value: string, options: CookieWriteOptions) -> void` — 実際にレスポンスへCookieを付与する関数（本番実装ではASP.NET Coreの`HttpResponse.Cookies.Append`相当をラップしたものを注入し、単体テスト時はモック関数を注入する）
@@ -187,7 +188,7 @@ CookieWriteOptions = {
   - `deps: { saveFormData: (userId: string, data: FormDataDto) -> SaveResult, setCookieFn?: (...) -> void, idGenerator?: () -> string }` — 依存オブジェクト。`saveFormData`はCOMP-03への委譲呼び出し（必須）。`setCookieFn`・`idGenerator`は省略可でテスト時にモックを注入できるようにする
 - **戻り値**: `{ statusCode: number }`（200 | 400 | 500 のいずれか。Cookie発行自体は`deps.setCookieFn`呼び出しを通じた副作用として行われるため、戻り値には含めない＝副作用と戻り値を分離する）
 - **副作用**: あり — FUNC-10・FUNC-11（新規発行時のみ）・FUNC-12・FUNC-14・FUNC-15・`deps.saveFormData`（COMP-03呼び出し、ファイルI/O発生）を介した間接的副作用
-- **処理順序（論理フロー）**: 手順1〜9全体を一つのtry-catchで囲み、いずれの手順で例外が送出されても（手順4以降でロックを取得済みの場合は手順6のfinally相当の解放処理を経た上で）呼び出し元へ再送出せず`{ statusCode: 500 }`を返すことで、「常に`{ statusCode }`を返す」という戻り値契約を満たす。
+- **処理順序（論理フロー）**: 手順1〜9全体を一つのtry-catchで囲み、いずれの手順で例外が送出されても（手順4以降でロックを取得済みの場合は手順6のfinally相当の解放処理を経た上で）呼び出し元へ再送出せず`{ statusCode }`を返す（手順ごとに定められたステータスコードを用いる。既定は500だが、手順3の入力解析エラーは400とする）ことで、「常に`{ statusCode }`を返す」という戻り値契約を満たす。
   1. FUNC-10でユーザー識別文字列を解決する。`idGenerator`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500 }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
   2. `isNewlyIssued`が`true`の場合、FUNC-11でCookieを付与する。`setCookieFn`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500 }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
   3. FUNC-12でリクエストボディを`FormDataDto`へ解析する。ここで例外が発生した場合は手順4以降を行わず`{ statusCode: 400 }`を返す
@@ -198,7 +199,7 @@ CookieWriteOptions = {
   8. 手順5が`{ success: false }`を返した場合: `{ statusCode: 400 }`を返す
   9. 手順5が`{ success: true }`を返した場合: `{ statusCode: 200 }`を返す
 - **例外/エラー時の挙動**: 上記処理順序の手順1・2・3・6・7に集約。手順1（`idGenerator`）・手順2（`setCookieFn`）の例外も手順7（`saveFormData`）の例外と同様にcatchして500として扱い、いずれの手順で例外が発生しても呼び出し元（FUNC-18）へは例外を再送出せず、常に`{ statusCode }`を返す
-- **対応要件**: REQ-02, REQ-03, REQ-06, NFR-02, NFR-06, CON-01, CON-03, CON-05
+- **対応要件**: REQ-02, REQ-03, REQ-06, NFR-06, CON-01, CON-03, CON-05（NFR-02〈ローカルホスト限定〉はASP.NET Core起動設定側の横断的要件のため、CON-06/07と同様に個別関数の対応要件欄には明記しない。詳細は7節参照）
 
 ### FUNC-17: HandleGetFormData
 
@@ -220,7 +221,7 @@ CookieWriteOptions = {
   7. 手順4が`{ found: false, data: null }`を返した場合: `{ statusCode: 404, bodyJson: null }`を返す
   8. 手順4が`{ found: true, data }`を返した場合: FUNC-13で`data`をJSON文字列化し、`{ statusCode: 200, bodyJson: <JSON文字列> }`を返す
 - **例外/エラー時の挙動**: 上記処理順序の手順1・2・5・6に集約。手順1（`idGenerator`）・手順2（`setCookieFn`）の例外も手順6（`loadFormData`）の例外と同様にcatchして500として扱い、いずれの手順で例外が発生しても呼び出し元（FUNC-18）へは例外を再送出しない
-- **対応要件**: REQ-04（復元用データの提供）, REQ-06, NFR-02, NFR-06, CON-01, CON-03, CON-05
+- **対応要件**: REQ-04（復元用データの提供）, REQ-06, NFR-06, CON-01, CON-03, CON-05（NFR-02〈ローカルホスト限定〉はASP.NET Core起動設定側の横断的要件のため、CON-06/07と同様に個別関数の対応要件欄には明記しない。詳細は7節参照）
 
 ### FUNC-18: MapFormDataEndpoints
 
@@ -278,5 +279,5 @@ flowchart TD
 
 - **テストケース設計への転用可能性**: 各関数の引数・戻り値・例外条件を表形式で明示しており、境界値（Cookie未設定/空文字列、JSON構文エラー、`success:false`、`found:false`、ロック取得中の例外等）をそのままテストケースの入力・期待値として転用できる粒度とした。
 - **副作用とロジックの分離、COMP-03への委譲の明確さ**: FUNC-10・FUNC-12・FUNC-13は副作用なし（純粋関数）。FUNC-11・FUNC-14・FUNC-15は単一の副作用（Cookie書き込み／ロック操作）のみを持つ。FUNC-16・FUNC-17はCOMP-03の保存/読込処理を`deps`引数経由の間接呼び出しとして受け取り、COMP-03の内部実装（ファイルI/O・JSON変換・検証ロジック）には一切立ち入らない。
-- **責務網羅性**: REQ-02（POST受付・COMP-03への委譲）、REQ-03（保存要求のHTTP受付）、REQ-04（GET受付・未存在判定の反映）、REQ-06（Cookie読取・新規発行）、NFR-02（ローカルホスト限定はASP.NET Core起動設定側の対応であり関数設計の対象外。FUNC-16/17がHTTPエンドポイント処理の統括関数としてこれを対応要件に含める一方、FUNC-14/15が担うのはユーザー識別文字列単位のプロセス内排他制御であり、ネットワークバインディングに関するNFR-02とは論理的に別種の関心事のためFUNC-14/15の対応要件からは除外した）、NFR-06（HTTP層とロジック層の分離。FUNC-16/17と`deps`によるDI分離で充足）、CON-01/03/05（ローカル実行・C#/.NET 10・ASP.NET Core・認証機構なしを前提とした設計）、CON-06/07（本ドキュメントおよび今後の実装コードに秘密情報・個人情報を含めない横断的規約。個別関数固有の設計事項ではないため関数ごとの対応要件欄には明記していない）を過不足なくカバーしていることを確認した。
+- **責務網羅性**: REQ-02（POST受付・COMP-03への委譲）、REQ-03（保存要求のHTTP受付）、REQ-04（GET受付・未存在判定の反映）、REQ-06（Cookie読取・新規発行）、NFR-06（HTTP層とロジック層の分離。FUNC-16/17と`deps`によるDI分離で充足）、CON-01/03/05（ローカル実行・C#/.NET 10・ASP.NET Core・認証機構なしを前提とした設計）を過不足なくカバーしていることを確認した。NFR-02（ローカルホスト限定）・CON-06/07（秘密情報・個人情報の非混入）は、いずれも個別関数固有の設計事項ではなく横断的な要件・規約であるため、関数ごとの対応要件欄には明記していない。NFR-02はKestrel起動設定（`Program.cs`等、FUNC-18より前のホスティング構成層）で実現するものであり、本文書が扱うリクエストごとのハンドラ関数（FUNC-10〜18）のいずれの責務でもないため、FUNC-14/15に加えFUNC-16/17の対応要件欄からも除外し、CON-06/07と同じ扱いに統一した。
 - **COMP-01 FUNC-04との整合性**: HTTPステータスコード404（対応ファイル未存在時）の採用で一致。COMP-01側の追随修正は不要と判断した（2.1節参照）。
