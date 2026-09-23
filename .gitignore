@@ -26,3 +26,6 @@ appsettings.Development.json
 # Server data directory (user-submitted JSON, CON-07)
 src/LearnPlaywright.Server/App_Data/
 App_Data/
+
+# git filter-repo の解説用に置いた実ファイル（旧メールアドレス・旧記述を含むため公開しない）
+docs/git_filter_repo_guide/private/
