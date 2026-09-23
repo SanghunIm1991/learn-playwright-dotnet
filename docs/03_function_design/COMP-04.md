@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-04: テストデータ構造・ヘルパー関数） |
-| 版数 | v1.0 |
+| 版数 | v1.1 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント） |
 
@@ -14,6 +14,7 @@
 | 版数 | 日付 | 変更内容 | 変更者 |
 |---|---|---|---|
 | v1.0 | 2026-09-23 | 初版作成 | ClaudeCode |
+| v1.1 | 2026-09-23 | 論理レビュー指摘4件を反映。(1)FUNC-30〜42の対応要件欄から誤って付与されていたREQ-09を削除（COMP-04の対応要件はREQ-08/NFR-07/CON-04,06,07のみでREQ-09はCOMP-05専属のため）、3節のFormValuesTestCase docstringのREQ-09言及も削除。(2)2.1節が記録を自称していたが未記録だった独自判断2件（テストケースの命名・識別方法、排他制御の要否）をdocs/qa_log.mdに追記。(3)3節に`FormValuesTestCases`静的クラス（`GetCases`シグネチャ）のコード例を追加。(4)6節自己チェック見出しにCON-07を追加（本文には既に記載済みだったが見出しから欠落していた） | ClaudeCode |
 
 ## 2. 対応コンポーネント
 
@@ -62,8 +63,9 @@ public sealed record MessageState(
 
 /// <summary>
 /// 1件のテストケース: UIへ入力する値（Input）と、送信結果・復元結果として
-/// 期待する値の組。REQ-08（TestCaseSourceによるパラメータ化）・REQ-09
-/// （送信→保存検証、読込→復元検証のシナリオ）に対応する。
+/// 期待する値の組。REQ-08（TestCaseSourceによるパラメータ化）に対応する
+/// （送信→保存検証、読込→復元検証のシナリオ自体はCOMP-05の対応要件に属し、
+/// 本型はそのシナリオで用いる入出力データを提供する）。
 /// </summary>
 public sealed record FormValuesTestCase(
     string CaseId,                  // 例: "BND-TEXT-OVERLEN"。NUnitのテスト表示名・失敗時ログで識別するための一意な文字列
@@ -126,6 +128,20 @@ public static class FormTestIds
     public const string LoadButton = "load-button";
     public const string MessageArea = "message-area";
 }
+
+/// <summary>
+/// NUnitの[TestCaseSource]から参照される、代表値・境界値を網羅したテストケース列挙の提供元。
+/// GetCasesの実装の中身（含むケースの詳細）はFUNC-29仕様（4節）に委ねる。ここではシグネチャのみ示す。
+/// </summary>
+public static class FormValuesTestCases
+{
+    // FUNC-29: 代表値・境界値を網羅したテストケースの列挙を返す。詳細は4節FUNC-29を参照。
+    public static IEnumerable<NUnit.Framework.TestCaseData> GetCases()
+    {
+        // 実装の中身は4節FUNC-29の仕様に委ねる（本節では型・シグネチャのみを示す）。
+        throw new NotImplementedException();
+    }
+}
 ```
 
 ### 3.1 NFR-07充足の説明
@@ -139,19 +155,19 @@ public static class FormTestIds
 | FUNC-27 | `FormValuesTestCase.RoundTrip` | データ生成（ロジック） | 送信成功・入力値どおりの復元を期待するテストケースを生成する | REQ-08, NFR-07 |
 | FUNC-28 | `FormValuesTestCase.ExpectedRejection` | データ生成（ロジック） | 送信拒否（検証エラー）を期待するテストケースを生成する | REQ-08, NFR-07 |
 | FUNC-29 | `FormValuesTestCases.GetCases` | データ生成（TestCaseSource提供） | 代表値・境界値を網羅したテストケース列挙を返す | REQ-08, NFR-07 |
-| FUNC-30 | `SetTextBoxValueAsync` | Playwright操作（DOM書き込み） | テキストボックスへ値を設定する | REQ-08, REQ-09 |
-| FUNC-31 | `GetTextBoxValueAsync` | Playwright操作（DOM読み取り） | テキストボックスの現在値を取得する | REQ-08, REQ-09 |
-| FUNC-32 | `SetSliderValueAsync` | Playwright操作（DOM書き込み） | スライダーへ値を設定する | REQ-08, REQ-09 |
-| FUNC-33 | `GetSliderValueAsync` | Playwright操作（DOM読み取り） | スライダーの現在値を取得する | REQ-08, REQ-09 |
-| FUNC-34 | `SetSelectValueAsync` | Playwright操作（DOM書き込み） | プルダウンリストの選択項目を設定する | REQ-08, REQ-09 |
-| FUNC-35 | `GetSelectValueAsync` | Playwright操作（DOM読み取り） | プルダウンリストの現在の選択値を取得する | REQ-08, REQ-09 |
-| FUNC-36 | `SetRadioValueAsync` | Playwright操作（DOM書き込み） | 指定値のラジオボタンを選択する | REQ-08, REQ-09 |
-| FUNC-37 | `GetRadioValueAsync` | Playwright操作（DOM読み取り） | 現在選択中のラジオボタンの値を取得する | REQ-08, REQ-09 |
-| FUNC-38 | `ClickSubmitButtonAsync` | Playwright操作（クリック） | 送信ボタンをクリックする | REQ-08, REQ-09 |
-| FUNC-39 | `ClickLoadButtonAsync` | Playwright操作（クリック） | 読み込みボタンをクリックする | REQ-08, REQ-09 |
-| FUNC-40 | `SetFormValuesAsync` | Playwright操作（複合・DOM書き込み） | `FormValues`の全項目をUIへ一括反映する | REQ-08, REQ-09, NFR-07 |
-| FUNC-41 | `GetFormValuesAsync` | Playwright操作（複合・DOM読み取り） | UIの全項目の現在値を`FormValues`として一括取得する | REQ-08, REQ-09, NFR-07 |
-| FUNC-42 | `GetMessageAsync` | Playwright操作（DOM読み取り） | メッセージ表示領域のテキスト・種別を取得する | REQ-08, REQ-09 |
+| FUNC-30 | `SetTextBoxValueAsync` | Playwright操作（DOM書き込み） | テキストボックスへ値を設定する | REQ-08 |
+| FUNC-31 | `GetTextBoxValueAsync` | Playwright操作（DOM読み取り） | テキストボックスの現在値を取得する | REQ-08 |
+| FUNC-32 | `SetSliderValueAsync` | Playwright操作（DOM書き込み） | スライダーへ値を設定する | REQ-08 |
+| FUNC-33 | `GetSliderValueAsync` | Playwright操作（DOM読み取り） | スライダーの現在値を取得する | REQ-08 |
+| FUNC-34 | `SetSelectValueAsync` | Playwright操作（DOM書き込み） | プルダウンリストの選択項目を設定する | REQ-08 |
+| FUNC-35 | `GetSelectValueAsync` | Playwright操作（DOM読み取り） | プルダウンリストの現在の選択値を取得する | REQ-08 |
+| FUNC-36 | `SetRadioValueAsync` | Playwright操作（DOM書き込み） | 指定値のラジオボタンを選択する | REQ-08 |
+| FUNC-37 | `GetRadioValueAsync` | Playwright操作（DOM読み取り） | 現在選択中のラジオボタンの値を取得する | REQ-08 |
+| FUNC-38 | `ClickSubmitButtonAsync` | Playwright操作（クリック） | 送信ボタンをクリックする | REQ-08 |
+| FUNC-39 | `ClickLoadButtonAsync` | Playwright操作（クリック） | 読み込みボタンをクリックする | REQ-08 |
+| FUNC-40 | `SetFormValuesAsync` | Playwright操作（複合・DOM書き込み） | `FormValues`の全項目をUIへ一括反映する | REQ-08, NFR-07 |
+| FUNC-41 | `GetFormValuesAsync` | Playwright操作（複合・DOM読み取り） | UIの全項目の現在値を`FormValues`として一括取得する | REQ-08, NFR-07 |
+| FUNC-42 | `GetMessageAsync` | Playwright操作（DOM読み取り） | メッセージ表示領域のテキスト・種別を取得する | REQ-08 |
 
 種別の内訳: データ生成3件（FUNC-27〜29）、Playwright操作の個別コントロール用DOM読み取り/書き込み10件（FUNC-30〜39）、複合ヘルパー2件（FUNC-40・41）、メッセージ読み取り1件（FUNC-42）。FUNC-27〜28はデータ構造（3節）に内包されるため、以降の詳細節では独立節を設けず3節のコード内コメントを一次情報源とする。
 
@@ -193,7 +209,7 @@ public static class FormTestIds
 - **例外/エラー時の挙動**:
   - `page`または`value`が`null`の場合: `ArgumentNullException`をthrowする
   - 対象要素がPlaywrightの既定タイムアウト内に見つからない場合: Playwrightの`TimeoutException`がそのままthrowされる（本関数はcatchしない）
-- **対応要件**: REQ-08, REQ-09
+- **対応要件**: REQ-08
 
 ### FUNC-31: GetTextBoxValueAsync
 
@@ -202,7 +218,7 @@ public static class FormTestIds
 - **戻り値**: `Task<string>` — 現在の入力値（未入力時は空文字列）
 - **副作用**: なし（`InputValueAsync()`による読み取りのみ）
 - **例外/エラー時の挙動**: `page`が`null`の場合`ArgumentNullException`。要素未検出時はPlaywrightの`TimeoutException`
-- **対応要件**: REQ-08, REQ-09
+- **対応要件**: REQ-08
 
 ### FUNC-32: SetSliderValueAsync
 
@@ -217,7 +233,7 @@ public static class FormTestIds
   - `value`が`NaN`または`±Infinity`の場合: `ArgumentException`をthrowする（COMP-03 FUNC-20の検証ルールと対称に、UIへ設定不能な値を渡すこと自体を早期に防止する）
   - 対象要素がタイムアウト内に見つからない場合: `TimeoutException`
   - HTML `min`/`max`属性の範囲外の値を指定した場合の挙動（ブラウザ側でクランプされるか等）は本関数では規定しない。ブラウザのrange input仕様に委ねる
-- **対応要件**: REQ-08, REQ-09
+- **対応要件**: REQ-08
 
 ### FUNC-33: GetSliderValueAsync
 
@@ -229,7 +245,7 @@ public static class FormTestIds
   - `page`が`null`の場合: `ArgumentNullException`
   - `InputValueAsync()`で取得した文字列を`double.Parse`する際に変換失敗した場合: `FormatException`をthrowする（range要素は常に数値文字列を返すため通常到達しない防御的分岐）
   - 要素未検出時: `TimeoutException`
-- **対応要件**: REQ-08, REQ-09
+- **対応要件**: REQ-08
 
 ### FUNC-34: SetSelectValueAsync
 
@@ -243,7 +259,7 @@ public static class FormTestIds
   - `page`または`value`が`null`の場合: `ArgumentNullException`
   - `value`に一致する`option`が存在しない場合: Playwrightの標準例外（該当なしエラー）がそのままthrowされる
   - 要素未検出時: `TimeoutException`
-- **対応要件**: REQ-08, REQ-09
+- **対応要件**: REQ-08
 
 ### FUNC-35: GetSelectValueAsync
 
@@ -252,7 +268,7 @@ public static class FormTestIds
 - **戻り値**: `Task<string>`
 - **副作用**: なし（`page.Locator(FormTestIds.Select).InputValueAsync()`による読み取りのみ）
 - **例外/エラー時の挙動**: `page`が`null`の場合`ArgumentNullException`。要素未検出時は`TimeoutException`
-- **対応要件**: REQ-08, REQ-09
+- **対応要件**: REQ-08
 
 ### FUNC-36: SetRadioValueAsync
 
@@ -266,7 +282,7 @@ public static class FormTestIds
   - `page`が`null`の場合: `ArgumentNullException`
   - `value`が`null`の場合: 例外を投げず即座に完了する（no-op）
   - `value`に一致するラジオボタンが存在しない場合: Playwrightの標準例外（`TimeoutException`、対象要素が見つからない）がそのままthrowされる
-- **対応要件**: REQ-08, REQ-09
+- **対応要件**: REQ-08
 
 ### FUNC-37: GetRadioValueAsync
 
@@ -279,7 +295,7 @@ public static class FormTestIds
   - ラジオボタン要素群（`data-testid="radio-option"`）自体が1件も存在しない場合: フォーム構造の不整合とみなし`InvalidOperationException`をthrowする（COMP-01 FUNC-01が要素欠落時に`TypeError`をthrowする設計と同様の考え方）
   - 要素群は存在するが選択済みのものが1件もない場合: 例外を投げず`null`を返す（正常系。REQ-08のテストケースで`radio: null`を表現するために必須の分岐）
   - 選択済みの要素が2件以上検出された場合（同一`name`のグループとして正しくマークアップされていない実装不整合）: `InvalidOperationException`をthrowする
-- **対応要件**: REQ-08, REQ-09
+- **対応要件**: REQ-08
 
 ### FUNC-38: ClickSubmitButtonAsync
 
@@ -288,7 +304,7 @@ public static class FormTestIds
 - **戻り値**: `Task`
 - **副作用**: あり — `page.Locator(FormTestIds.SubmitButton).ClickAsync()`。COMP-01 FUNC-07（`handleSubmitButtonClick`）が起動し、POSTリクエストが発行される
 - **例外/エラー時の挙動**: `page`が`null`の場合`ArgumentNullException`。要素未検出時は`TimeoutException`
-- **対応要件**: REQ-08, REQ-09
+- **対応要件**: REQ-08
 
 ### FUNC-39: ClickLoadButtonAsync
 
@@ -297,7 +313,7 @@ public static class FormTestIds
 - **戻り値**: `Task`
 - **副作用**: あり — `page.Locator(FormTestIds.LoadButton).ClickAsync()`。COMP-01 FUNC-08（`handleLoadButtonClick`）が起動し、GETリクエストが発行される
 - **例外/エラー時の挙動**: `page`が`null`の場合`ArgumentNullException`。要素未検出時は`TimeoutException`
-- **対応要件**: REQ-08, REQ-09
+- **対応要件**: REQ-08
 
 ### FUNC-40: SetFormValuesAsync
 
@@ -310,7 +326,7 @@ public static class FormTestIds
 - **例外/エラー時の挙動**:
   - `page`または`values`が`null`の場合: `ArgumentNullException`
   - 内部で呼び出す各関数（FUNC-30・32・34・36）が例外をthrowした場合、catchせずそのまま伝播する。途中の項目で例外が発生した場合、それ以降の項目への設定は行われず、UIは部分適用状態になり得る。この状態のハンドリング（テスト失敗として扱う等）はCOMP-05側の責務とする
-- **対応要件**: REQ-08, REQ-09, NFR-07（COMP-05のテストメソッド本体を、入力パターン追加のたびに修正不要にするための基盤）
+- **対応要件**: REQ-08, NFR-07（COMP-05のテストメソッド本体を、入力パターン追加のたびに修正不要にするための基盤）
 
 ### FUNC-41: GetFormValuesAsync
 
@@ -319,7 +335,7 @@ public static class FormTestIds
 - **戻り値**: `Task<FormValues>`
 - **副作用**: なし
 - **例外/エラー時の挙動**: `page`が`null`の場合`ArgumentNullException`。内部で呼び出す各関数（FUNC-31・33・35・37）の例外をそのまま伝播する
-- **対応要件**: REQ-08, REQ-09, NFR-07
+- **対応要件**: REQ-08, NFR-07
 
 ### FUNC-42: GetMessageAsync
 
@@ -332,7 +348,7 @@ public static class FormTestIds
   - メッセージ表示領域自体が見つからない場合: `TimeoutException`
   - `message--success` / `message--error` / `message--info`のいずれのクラスも付与されていない場合: 例外を投げず`Type: null`として返す（FUNC-06呼び出し直後の初期状態等、正常系として扱う）
   - 上記3クラスのうち2つ以上が同時に付与されている場合（COMP-01実装の不整合）: `InvalidOperationException`をthrowする（防御的チェック）
-- **対応要件**: REQ-08, REQ-09
+- **対応要件**: REQ-08
 
 ## 5. 関数間の呼び出し関係
 
@@ -395,7 +411,7 @@ flowchart TD
 - **テストケース設計への転用可能性**: `FormValuesTestCase`はCaseId・Category・Input・ExpectedSubmitSuccess・ExpectedRestoredの5フィールドで構成され、テスト仕様書（`docs/04_test/`）のテストケース一覧へそのまま転記できる粒度とした。FUNC-29の含むケース一覧（表形式）は、次工程（テスト工程）でのテストケースIDへの転用元として利用できる。
 - **テストデータ構造とヘルパー関数の分離（NFR-07）**: 3節（データ構造: `FormValues` / `MessageState` / `FormValuesTestCase` / 定数群）と4節（ヘルパー関数: Playwright操作を伴うFUNC-30〜42）を明確に分離した。データ生成用のFUNC-27〜29は`Page`引数を取らず、Playwright操作用のFUNC-30〜42は必ず`Page`引数を取るという構造的な区別によって、両者の混在を防いでいる。新規入力パターンの追加はFUNC-29の返す列挙への1件追加のみで完結し、既存のテストロジック本体（COMP-05側）・ヘルパー関数本体（FUNC-30〜42）のいずれも修正不要である（3.1節）。
 - **COMP-01のFormValues型との対応**: 本設計の`FormValues`（C#）は、COMP-01関数設計書3節の`FormValues`（JS）と`text` / `slider` / `select` / `radio`の4フィールド・意味づけが完全に一致する。COMP-03の`FormDataDto`とも同一形状であり、UI層・保存層・テスト層で一貫したデータ形状を保っている。
-- **COMP-04の責務網羅性（REQ-08 / NFR-07 / CON-04, 06）**:
+- **COMP-04の責務網羅性（REQ-08 / NFR-07 / CON-04, 06, 07）**:
   - REQ-08（`TestCaseSource`によるパラメータ化）: FUNC-29が`IEnumerable<TestCaseData>`を返す設計で充足。
   - NFR-07（データ構造の一元管理、ハードコード・ロジック改修の不要化）: 3.1節・本節前段で確認済み。
   - CON-04（Playwright for .NET／C#／NUnit）: 全関数がC#で設計され、NUnitの`TestCaseSource`・`TestCaseData`を用いる。
