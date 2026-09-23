@@ -33,7 +33,7 @@ Playwrightを用いたブラウザアプリのテスト自動化を学ぶため�
 - [x] プロジェクトセットアップ（CLAUDE.md・フォルダ構成・.claude/settings.json）
 - [x] .NET 10 SDK導入（2026-09-23、ユーザーが導入完了。10.0.401）
 - [x] 要件定義（`docs/01_requirements/requirements.md` v1.2、2026-09-23完了。REQ-01〜12/NFR-01〜08/CON-01〜07）
-- [ ] コンポーネント設計
+- [x] コンポーネント設計（`docs/02_component_design/component_design.md` v1.3、2026-09-23完了。COMP-01〜06）
 - [ ] 関数設計
 - [ ] 実装
 - [ ] テスト
