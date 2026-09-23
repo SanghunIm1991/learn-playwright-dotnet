@@ -17,6 +17,9 @@
 テストがページを開くには、サーバーが動いている必要があります。**新しいターミナルをもう1つ開き**、このリポジトリのルートフォルダ（`global.json` があるフォルダ）で次を実行します。
 
 ```powershell
+# リポジトリのルートフォルダに移動する
+cd C:\work\learn-playwright-dotnet
+
 # サンプルアプリ（ASP.NET Core）のサーバーを起動する
 dotnet run --project src/LearnPlaywright.Server
 ```
@@ -107,6 +110,10 @@ public class FirstTests
 サーバーを起動したターミナルとは**別のターミナル**で、学習用プロジェクトのフォルダに移動して実行します。
 
 ```powershell
+# 学習用プロジェクトのフォルダに移動する
+cd C:\work\MyFirstPlaywrightTests
+
+# テストを実行する
 dotnet test
 ```
 

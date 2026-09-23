@@ -67,7 +67,8 @@ public static class FormPageHelpers
 
     // メッセージ欄の種類（成功・エラー・お知らせ）。画面では "message--success" のような
     // class 名で表されるので、この一覧と照らし合わせて今の種類を調べる。
-    // 取りうる値を一覧にしておくと、想定外の種類が出たときに気付ける
+    // 一覧にある種類だけを対象に調べ、一覧外の class は無視される。
+    // 複数の種類の class が同じ要素に付いている場合のみエラーになる
     private static readonly string[] MessageTypes = ["success", "error", "info"];
 
     // テキストボックスに入力する（4章の FillAsync と同じ）
