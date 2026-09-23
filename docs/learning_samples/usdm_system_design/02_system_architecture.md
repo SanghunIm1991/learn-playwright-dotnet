@@ -111,8 +111,8 @@ flowchart TB
     AE09 -- "操作を依頼" --> AE08
     AE08 -- "ブラウザ経由で操作（IF-04）" --> AE01
     AE09 -- "起動・停止（IF-05）" --> AE04
-    AE09 -. "注意書きの確認（IF-04）" .-> AE01
-    AE09 -. "起動待ち・直接の保存要求（IF-01）" .-> AE03
+    AE09 -. "表示の確認（IF-04）" .-> AE01
+    AE09 -. "起動待ち・直接の要求・応答の差し替え（IF-01）" .-> AE03
     AE10 -- "直接呼び出し" --> AE05
     AE10 -- "直接呼び出し" --> AE03
     AE10 -- "直接呼び出し" --> AE04
@@ -124,13 +124,13 @@ flowchart TB
 |---|---|---|---|
 | AE-01 | フォーム画面 | 入力部品・ボタン・注意書き・メッセージ欄を表示する。テスト用の目印（`data-testid`等）を持つ | `src/LearnPlaywright.Server/wwwroot/index.html`, `style.css` |
 | AE-02 | 画面制御スクリプト | 入力値の収集と復元、APIの呼び出し、メッセージの表示、処理完了の目印の更新 | `src/LearnPlaywright.Server/wwwroot/app.js` |
-| AE-03 | Web API | 識別子（Cookie）の発行、要求の形式・大きさの確認、利用者単位の排他、応答コードの決定。処理本体はAE-05へ委譲する | `src/LearnPlaywright.Server/FormDataApi.cs` |
+| AE-03 | Web API | 識別子（Cookie）の発行、要求の形式・大きさの確認、要求本文と応答のJSON変換、利用者単位の排他、応答コードの決定。入力検証と保存・読み込みの処理本体はAE-05へ委譲する | `src/LearnPlaywright.Server/FormDataApi.cs` |
 | AE-04 | 起動・安全確認 | 待ち受けURL・保存先の決定、静的ファイルの配信、起動後のループバック確認 | `src/LearnPlaywright.Server/Program.cs`, `LoopbackBindingCheck.cs` |
-| AE-05 | 保存ロジック | 入力値の検証、JSONとの相互変換、識別子からファイル名への変換、ファイルの読み書き | `src/LearnPlaywright.Logic/` |
+| AE-05 | 保存ロジック | 入力値の検証、保存ファイル用のJSONとの相互変換、識別子からファイル名への変換、ファイルの読み書き | `src/LearnPlaywright.Logic/` |
 | AE-06 | 保存ファイル | 利用者ごとの最新の入力値1件（JSON） | 既定は`src/LearnPlaywright.Server/App_Data/`（Git管理外） |
 | AE-07 | テストデータ定義 | テストケース（入力値と期待値の組）の型と一覧、部品の目印・上限値の定数 | `tests/LearnPlaywright.Tests/TestData/FormTestData.cs` |
 | AE-08 | 画面操作ヘルパー | 部品ごとの値の設定・読み取り、ボタン操作と処理完了の待機 | `tests/LearnPlaywright.Tests/TestData/FormPageHelpers.cs` |
-| AE-09 | E2Eシナリオテスト | サーバーとブラウザの起動・停止、テストごとのブラウザ状態の分離、シナリオの実行と確認。操作はAE-08に任せるが、注意書きの表示確認と、APIへの直接の要求（起動待ち、JSON以外の形式の拒否の確認）は自分で行う | `tests/LearnPlaywright.Tests/Scenarios/FormDataScenarioTests.cs` |
+| AE-09 | E2Eシナリオテスト | サーバーとブラウザの起動・停止、テストごとのブラウザ状態の分離、シナリオの実行と確認。入力・クリック・値の読み取りといった普段の操作はAE-08に任せる。AE-08が扱わない確認（部品の表示、Cookieの属性、API応答を差し替えたときの画面の反応、APIへの直接の要求）は、Playwrightの機能で自分で行う | `tests/LearnPlaywright.Tests/Scenarios/FormDataScenarioTests.cs` |
 | AE-10 | 単体テスト | AE-03・AE-04（ループバック判定）・AE-05の関数を直接呼んで確かめる。AE-05のプロジェクトがASP.NET Coreを参照していないことも確かめる | `tests/LearnPlaywright.UnitTests/` |
 
 ### 4.3 依存のルール
@@ -145,7 +145,7 @@ flowchart TB
 
 ### IF-01 保存データAPI（AE-02・AE-09 ⇔ AE-03）
 
-通常の利用者はAE-02です。AE-09は、サーバーの起動待ち（`GET`）と、JSON以外の形式を拒否することの確認（`POST`）で直接使います。
+通常の利用者はAE-02です。AE-09も、サーバーの起動待ち・JSON以外の形式を拒否することの確認で直接要求を送り、異常時の画面の反応を確かめるためにブラウザ上で応答を差し替えます。
 
 | 操作 | 要求 | 応答 |
 |---|---|---|
@@ -153,6 +153,8 @@ flowchart TB
 | 読み込み | `GET /api/form-data` | 200: 本文に保存データ（JSON）／404: 保存データなし／500: サーバー内部の異常 |
 
 ### IF-02 利用者識別Cookie（ブラウザ ⇔ AE-03）
+
+AE-09は、初回の要求でこのCookieが発行されることと、その属性を、ブラウザの状態から直接確かめます。
 
 | 項目 | 取り決め |
 |---|---|
@@ -179,7 +181,7 @@ flowchart TB
 
 ### IF-04 画面の取り決め（AE-01 ⇔ AE-02・AE-08・AE-09）
 
-AE-09が直接使うのは、注意書き（`notice`）の表示の確認だけです。それ以外の操作・読み取りはAE-08を通します。
+AE-09は、入力・クリック・値の読み取りをAE-08に任せ、部品が表示されていることの確認だけを直接行います。
 
 | 目印 | 対象 |
 |---|---|
@@ -354,7 +356,7 @@ flowchart LR
 | SR-01-03 読み込んで復元 | | ○ | ○ | | ○ | ○ | | | | |
 | SR-01-04 ブラウザごとに区別 | | | ○ | | ○ | | | | | |
 | SR-01-05 同時要求でも壊れない | | | ○ | | | | | | | |
-| SR-02-01 部品を安定して特定 | ○ | ○ | | | | | ○ | | | |
+| SR-02-01 部品を安定して特定 | ○ | ○ | | | | | ○ | ○ | | |
 | SR-02-02 処理の完了を待てる | ○ | ○ | | | | | | ○ | | |
 | SR-02-03 テストデータを一元管理 | | | | | | | ○ | ○ | ○ | |
 | SR-02-04 1コマンドで全テスト | | | | ○ | | | | | ○ | ○ |
