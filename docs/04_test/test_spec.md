@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright テスト仕様書 |
-| 版数 | v1.1 |
+| 版数 | v1.2 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode |
 
@@ -15,6 +15,7 @@
 |---|---|---|---|
 | v1.0 | 2026-09-23 | 初版作成 | ClaudeCode |
 | v1.1 | 2026-09-23 | レビュー指摘（B-1〜5）対応: E2E-01/02/04の対応関数を実態に合わせて修正、無理な要件対応付け（CON-05↔UT-03-01、NFR-06↔UT-03-13、CON-03↔UT-XX-01）を削除、テストレベル定義を明確化、413未検証を既知の限界に追記 | ClaudeCode |
+| v1.2 | 2026-09-24 | レビュー指摘（軽微4件）対応: E2E-01の対応要件にNFR-07を追加（E2E-02と同一のTestCaseSource/データ構造を用いるため） | ClaudeCode |
 
 ## 2. テスト方針
 
@@ -85,7 +86,7 @@ E2E-01・E2E-02はCOMP-04 FUNC-29の12ケース（REP-DEFAULT、BND-TEXT-EMPTY/M
 
 | テストID | 内容 | 期待結果 | 対応関数 | 対応要件 | レベル | 由来 |
 |---|---|---|---|---|---|---|
-| E2E-01 | 入力→送信→メッセージ種別の検証（FUNC-47） | 受理ケースはsuccess、BND-TEXT-OVERLENはerror | FUNC-01, FUNC-03, FUNC-05, FUNC-07, FUNC-09, FUNC-16, FUNC-18, FUNC-25, FUNC-27〜30, FUNC-32, FUNC-34, FUNC-36, FUNC-38, FUNC-40, FUNC-42, FUNC-43〜47 | REQ-01, REQ-02, REQ-03, REQ-08, REQ-09, CON-01, CON-03, CON-04 | 統合 | 仕様/設計 |
+| E2E-01 | 入力→送信→メッセージ種別の検証（FUNC-47） | 受理ケースはsuccess、BND-TEXT-OVERLENはerror | FUNC-01, FUNC-03, FUNC-05, FUNC-07, FUNC-09, FUNC-16, FUNC-18, FUNC-25, FUNC-27〜30, FUNC-32, FUNC-34, FUNC-36, FUNC-38, FUNC-40, FUNC-42, FUNC-43〜47 | REQ-01, REQ-02, REQ-03, REQ-08, REQ-09, NFR-07, CON-01, CON-03, CON-04 | 統合 | 仕様/設計 |
 | E2E-02 | 送信→再読み込み→読み込み→復元値の検証（FUNC-48） | 受理ケースは入力値どおり復元、拒否ケースはinfoメッセージ | FUNC-02, FUNC-04, FUNC-06, FUNC-08, FUNC-09, FUNC-17, FUNC-18, FUNC-26, FUNC-27〜42, FUNC-43〜46, FUNC-48 | REQ-04, REQ-05, REQ-06, REQ-08, REQ-09, NFR-07, CON-01, CON-04 | 統合 | 仕様/設計 |
 | E2E-03 | 6種類のUIコントロールと注意書きの表示 | 全コントロール表示、ラジオ3件、注意書きに「個人情報」 | （静的HTML） | REQ-01, REQ-07, NFR-01 | 統合 | 仕様/設計 |
 | E2E-04 | Cookie未設定での初回リクエスト | lp_user_id（HttpOnly）が発行される | FUNC-09, FUNC-10, FUNC-11, FUNC-18, FUNC-39 | REQ-06, CON-05 | 統合 | 仕様/設計 |

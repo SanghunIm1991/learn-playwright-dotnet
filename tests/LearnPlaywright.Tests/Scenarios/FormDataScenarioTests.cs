@@ -125,7 +125,7 @@ public sealed class FormDataScenarioTests
         _page = null;
     }
 
-    // FUNC-47: 入力→送信→メッセージ種別による受理/拒否の検証
+    // E2E-01（FUNC-47）: 入力→送信→メッセージ種別による受理/拒否の検証
     [Test]
     [TestCaseSource(typeof(FormValuesTestCases), nameof(FormValuesTestCases.GetCases))]
     public async Task SubmitAndVerifySavedResult(FormValuesTestCase testCase)
@@ -137,7 +137,7 @@ public sealed class FormDataScenarioTests
         Assert.That(message.Type, Is.EqualTo(testCase.ExpectedSubmitSuccess ? "success" : "error"));
     }
 
-    // FUNC-48: 送信→再読み込み→読み込み→復元値（または未保存メッセージ）の検証
+    // E2E-02（FUNC-48）: 送信→再読み込み→読み込み→復元値（または未保存メッセージ）の検証
     [Test]
     [TestCaseSource(typeof(FormValuesTestCases), nameof(FormValuesTestCases.GetCases))]
     public async Task LoadAndVerifyRestoredValues(FormValuesTestCase testCase)
