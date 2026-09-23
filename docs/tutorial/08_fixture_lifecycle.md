@@ -87,13 +87,15 @@ namespace MyFirstPlaywrightTests;
 
 public static class ServerConfig
 {
+    // テストで開くサンプルアプリのURL。サーバーの起動時の --urls にも同じ値を渡し、
+    // 「サーバーが待ち受ける場所」と「ブラウザが開く場所」を1か所の定数でそろえる
     public const string BaseUrl = "http://localhost:5080";
 
     // 例: 環境変数 LEARNPLAYWRIGHT_SERVER_PROJECT があればそれを使い、なければ下の定数を使う。
-    // 下のパスは例なので、自分のPCでリポジトリを置いた場所に合わせて書き換える
+    // 下のパスは0章の例（C:\work に git clone した場合）。自分のPCでリポジトリを置いた場所に合わせて書き換える
     public static string ServerProjectPath =>
         Environment.GetEnvironmentVariable("LEARNPLAYWRIGHT_SERVER_PROJECT")
-        ?? @"C:\path\to\LearnPlaywright\src\LearnPlaywright.Server";
+        ?? @"C:\work\learn-playwright-dotnet\src\LearnPlaywright.Server";
 
     // この時間を過ぎてもサーバーが応答しなければ、起動失敗とみなす
     public static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(30);
@@ -228,6 +230,9 @@ public sealed class FixtureTests
         throw new TimeoutException("Server did not start within the timeout.\n" + GetServerLog());
     }
 
+    // ここまでに受け取ったサーバーのログ（標準出力・標準エラー）を1つの文字列にして返す。
+    // 起動失敗時の例外メッセージに付けて、原因を調べやすくするために使う。
+    // ログは別スレッドから追記されるので、lock で「読んでいる最中に書き換わる」のを防ぐ
     private string GetServerLog()
     {
         lock (_serverLog) return _serverLog.ToString();

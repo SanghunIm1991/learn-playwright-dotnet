@@ -58,9 +58,22 @@ public sealed record FormValuesTestCase(
 // サーバーの検証ルールと、画面（index.html）のスライダー範囲に合わせた境界値
 public static class FormFieldLimits
 {
+    // テキストボックスに入れてよい最大文字数（サーバーの検証ルール）。
+    // 1000文字ちょうどは成功、1001文字は検証エラーになることを下のケースで確かめる
     public const int TextMaxLength = 1000;
+
+    // プルダウン・ラジオボタンの値の最大文字数（サーバーの検証ルール）。
+    // この教材でも完成版の E2E テストでも使っていない。画面からは決められた選択肢
+    // （apple など）しか選べず、201文字の値をブラウザ操作で送れないため。
+    // この長さの境界は、サーバーのロジックへ値を直接渡す単体テスト
+    // （tests/LearnPlaywright.UnitTests の FormDataStoreTests）で確かめている。
+    // ここではサーバーのルールと対応させるために定数として残している
     public const int SelectMaxLength = 200;
     public const int RadioMaxLength = 200;
+
+    // スライダーの最小値・最大値（index.html の min / max 属性の値）。
+    // 名前に Placeholder（仮の値）と付いているのは、設計の段階ではまだ値が決まっていなかった名残り。
+    // 値は実装で 0 と 100 に確定済みだが、設計書と名前で対応を取れるように名前はそのまま残している
     public const double SliderMinPlaceholder = 0;
     public const double SliderMaxPlaceholder = 100;
 }
@@ -83,6 +96,8 @@ public static class FormValuesTestCases
     // 基準になる入力値（ダミー値のみ）。各ケースはここから1か所だけ変えて作る
     private static readonly FormValues Base = new("ダミー太郎", 42, "banana", "green");
 
+    // テストケースの一覧を返す。テスト側の [TestCaseSource] がこのメソッドを名前で呼び出し、
+    // 返ってきたケース1件ごとにテストメソッドを1回ずつ実行する
     public static IEnumerable<TestCaseData> GetCases()
     {
         var cases = new List<FormValuesTestCase>

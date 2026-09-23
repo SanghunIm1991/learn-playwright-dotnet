@@ -5,6 +5,7 @@
 ## この章の前提知識
 
 - 0章: 学習用プロジェクト `MyFirstPlaywrightTests` を作り、`dotnet test` が成功したこと
+- 0章 手順5: サンプルアプリ（このリポジトリ）を手元に用意し、`dotnet build` でビルドできたこと
 - 1章: テストは他のテストに頼らず独立させる、固定時間で待たない、という考え方
 
 ## 注意: 入力するのはダミー値だけ
@@ -25,7 +26,11 @@ dotnet run --project src/LearnPlaywright.Server
 ```text
 info: Microsoft.Hosting.Lifetime[14]
       Now listening on: http://localhost:5080
+info: LearnPlaywright.Server[0]
+      Bound address: http://localhost:5080 (loopback: True)
 ```
+
+（0章 手順5-3 と同じ表示です。前後に `Application started.` などの行も出ます。）
 
 - このターミナルは**開いたまま**にしておきます（閉じるとサーバーが止まります）。止めたいときは、そのターミナルで `Ctrl+C` を押します。
 - ブラウザで http://localhost:5080/ を開くと、「LearnPlaywright サンプルフォーム」という見出しのページが表示されます。

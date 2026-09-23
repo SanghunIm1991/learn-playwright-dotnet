@@ -54,6 +54,13 @@ dotnet add package Microsoft.Playwright.NUnit
 テンプレート "NUnit ... Test Project" が正常に作成されました。
 ```
 
+> **初めて `dotnet` を使ったときに表示されるメッセージについて**
+>
+> .NET SDK を初めて使うと（多くの場合、この `dotnet new nunit` の実行時に）、`.NET へようこそ` という案内と一緒に、次のような表示が出ることがあります。
+>
+> - **テレメトリ**: .NET ツールの利用状況データが Microsoft に送信される旨の案内です。送信したくない場合は、環境変数 `DOTNET_CLI_TELEMETRY_OPTOUT` を `1` に設定します（任意）。
+> - **ASP.NET Core HTTPS 開発証明書をインストールしました**: 開発用の証明書が自分のユーザーの証明書ストアに追加されたという案内です。本教材のサンプルアプリは HTTP（`http://localhost`）だけで動くため、この証明書は使いません。案内にある `dotnet dev-certs https --trust`（証明書を信頼済みにする操作）は**実行する必要はありません**。
+
 作られた `MyFirstPlaywrightTests.csproj` を開き、`<TargetFramework>net10.0</TargetFramework>` になっていることを確認してください。別のバージョン（`net9.0` など）になっていた場合は、一度フォルダを削除し、`dotnet new nunit -n MyFirstPlaywrightTests -f net10.0` で作り直します。
 
 `dotnet add package` の出力の最後に次のような行があれば成功です（バージョン番号は時期によって変わります）。
@@ -118,10 +125,22 @@ Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration:
 
 ### 5-1. リポジトリを手元に用意する
 
-GitHub のリポジトリページから、次のどちらかの方法で取得します（置き場所は学習用プロジェクトとは別のフォルダにします）。
+GitHub のリポジトリページから、次のどちらかの方法で取得します。
 
-- Git を使う場合: リポジトリページの「Code」ボタンに表示されるURLを使って `git clone <リポジトリのURL>` を実行する
-- Git を使わない場合: 「Code」→「Download ZIP」でダウンロードし、任意のフォルダに展開する（展開したフォルダ名は `learn-playwright-dotnet-main` のように、末尾にブランチ名が付きます）
+> **注意: リポジトリは学習用プロジェクト（`C:\work\MyFirstPlaywrightTests`）のフォルダの中に置かないでください。** 中に置くと、学習用プロジェクトをビルドしたときにリポジトリ内の `.cs` ファイルまで一緒にコンパイルされてしまい、エラーになります。手順4を終えた時点ではターミナルが `C:\work\MyFirstPlaywrightTests` にいるので、まず1つ上の `C:\work` に移動してから取得します。
+
+- Git を使う場合: リポジトリページの「Code」ボタンに表示されるURLを使って、次のように実行する（`C:\work\learn-playwright-dotnet` ができる）
+
+  ```powershell
+  # 学習用プロジェクトのフォルダから出て、作業用フォルダ C:\work へ移動する
+  cd C:\work
+
+  # リポジトリを取得する（<リポジトリのURL> は「Code」ボタンに表示されるURLに置き換える）
+  git clone <リポジトリのURL>
+  ```
+
+- Git を使わない場合: 「Code」→「Download ZIP」でダウンロードし、`C:\work` に展開する。展開したフォルダ名は `learn-playwright-dotnet-main` のように、末尾にブランチ名が付きます。
+  - Windows のエクスプローラーで「すべて展開」を使うと、既定の展開先の中にさらに同名のフォルダが作られ、`C:\work\learn-playwright-dotnet-main\learn-playwright-dotnet-main\` のように**二重**になります。この場合は**内側のフォルダ**（`global.json` があるほう）で作業してください。
 
 以降、**リポジトリのルートフォルダ**（`global.json` や `README.md` があるフォルダ）で作業します。
 
@@ -129,7 +148,8 @@ GitHub のリポジトリページから、次のどちらかの方法で取得�
 
 ```powershell
 # リポジトリのルートフォルダへ移動する（パスは自分の置き場所に合わせる。
-# git clone した場合のフォルダ名は learn-playwright-dotnet、ZIPの場合は learn-playwright-dotnet-main）
+# git clone した場合は C:\work\learn-playwright-dotnet、
+# ZIPの場合は C:\work\learn-playwright-dotnet-main\learn-playwright-dotnet-main のような内側のフォルダ）
 cd C:\work\learn-playwright-dotnet
 
 # ソリューション全体をビルドする。
@@ -139,13 +159,6 @@ dotnet build
 ```
 
 出力の最後に `ビルドに成功しました。`（英語環境では `Build succeeded.`）と出ればOKです。
-
-> **初めて `dotnet` を使ったときに表示されるメッセージについて**
->
-> .NET SDK を初めて使うと、`.NET へようこそ` という案内と一緒に、次のような表示が出ることがあります。
->
-> - **テレメトリ**: .NET ツールの利用状況データが Microsoft に送信される旨の案内です。送信したくない場合は、環境変数 `DOTNET_CLI_TELEMETRY_OPTOUT` を `1` に設定します（任意）。
-> - **ASP.NET Core HTTPS 開発証明書をインストールしました**: 開発用の証明書が自分のユーザーの証明書ストアに追加されたという案内です。本サンプルは HTTP（`http://localhost`）だけで動くため、この証明書は使いません。案内にある `dotnet dev-certs https --trust`（証明書を信頼済みにする操作）は**実行する必要はありません**。
 
 ### 5-3. サンプルアプリを起動して画面を確認する
 
@@ -157,10 +170,13 @@ dotnet run --project src/LearnPlaywright.Server
 次のような行が表示されたら起動完了です。
 
 ```text
-Now listening on: http://localhost:5080
-Bound address: http://localhost:5080 (loopback: True)
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5080
+info: LearnPlaywright.Server[0]
+      Bound address: http://localhost:5080 (loopback: True)
 ```
 
+- 実際には、この前後に `Application started.` などの行も表示されます。2行のログの順序が入れ替わることもあります。
 - `Bound address ... (loopback: True)` は、サーバーが自分のPCの中（ループバックアドレス）だけで待ち受けていることの確認表示です。
 - ブラウザで http://localhost:5080/ を開き、「LearnPlaywright サンプルフォーム」の画面が表示されることを確認します。ダミー値を入れて「送信」→ ページを再読み込み →「読み込み」で値が戻ることも試してみてください。
 - 確認できたら、ターミナルで `Ctrl+C` を押してサーバーを止めます（2章で改めて起動します）。
@@ -200,7 +216,7 @@ dotnet test
 | テストが `失敗` になる | 雛形のファイルを編集していないか（この時点では何も書き換えない） |
 | `A compatible .NET SDK was not found` | 手順1で 10.0 系の SDK が入っているか（リポジトリの `global.json` は 10.0.100 以上を要求する） |
 | `dotnet build` でパッケージの復元に失敗する | インターネットに接続できるか（nuget.org からのダウンロードが必要） |
-| `Executable doesn't exist` を含むエラー | そのテストプロジェクトのフォルダで `playwright.ps1 install chromium` を実行したか |
+| `Executable doesn't exist` を含むエラー | そのテストプロジェクト用のブラウザを入れたか。学習用プロジェクトなら手順3（`MyFirstPlaywrightTests` のフォルダで `bin/Debug/net10.0/playwright.ps1 install chromium`）、完成版テストなら手順5-4（リポジトリのルートフォルダで `tests/LearnPlaywright.Tests/bin/Debug/net10.0/playwright.ps1 install chromium`）を実行する |
 | E2E テストが `is already in use` で失敗する | 手動で起動したサーバーが残っていないか（`Ctrl+C` で止める） |
 
 ## この章のまとめ

@@ -60,7 +60,14 @@ public static class FormTestIds
 ```csharp
 public static class FormPageHelpers
 {
+    // form 要素が持つ「通信を何回したか」の属性名。通信が終わると app.js がこの数を1増やすので、
+    // 値の変化を見れば「通信が終わった」と分かる（下の送信・読み込み関数で使う）。
+    // 文字列を何か所にも直接書くと書き間違えに気付きにくいので、定数にして1か所で管理する
     private const string RequestCountAttribute = "data-request-count";
+
+    // メッセージ欄の種類（成功・エラー・お知らせ）。画面では "message--success" のような
+    // class 名で表されるので、この一覧と照らし合わせて今の種類を調べる。
+    // 取りうる値を一覧にしておくと、想定外の種類が出たときに気付ける
     private static readonly string[] MessageTypes = ["success", "error", "info"];
 
     // テキストボックスに入力する（4章の FillAsync と同じ）
@@ -97,6 +104,7 @@ public static class FormPageHelpers
         return double.Parse(raw, CultureInfo.InvariantCulture);
     }
 
+    // プルダウンで選択肢を選ぶ（4章の SelectOptionAsync と同じ。value は option の value 属性の値）
     public static async Task SetSelectValueAsync(IPage page, string value)
     {
         ArgumentNullException.ThrowIfNull(page);
@@ -104,6 +112,7 @@ public static class FormPageHelpers
         await page.GetByTestId(FormTestIds.Select).SelectOptionAsync(value);
     }
 
+    // プルダウンで今選ばれている選択肢の value を読む（5章の InputValueAsync と同じ）
     public static async Task<string> GetSelectValueAsync(IPage page)
     {
         ArgumentNullException.ThrowIfNull(page);
@@ -116,6 +125,9 @@ public static class FormPageHelpers
     {
         ArgumentNullException.ThrowIfNull(page);
         if (value is null) return;
+        // 改行などの制御文字はCSSセレクタを壊すため受け付けない
+        if (value.Any(char.IsControl))
+            throw new ArgumentException("ラジオボタンの値に制御文字は使えません。", nameof(value));
         // 値に ' や \ が含まれてもセレクタが壊れないようエスケープする
         // （セレクタの中では ' で値を囲んでいるので、値の中の ' はそのままだと「値の終わり」と誤解される）
         string escaped = value.Replace("\\", "\\\\").Replace("'", "\\'");
