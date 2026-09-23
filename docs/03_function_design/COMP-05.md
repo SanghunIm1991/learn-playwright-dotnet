@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-05: Playwrightテストシナリオ） |
-| 版数 | v1.5 |
+| 版数 | v1.6 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント・論理設計担当／可読性向上担当） |
 
@@ -19,6 +19,7 @@
 | v1.3 | 2026-09-23 | 可読性向上（内容変更なし）。(1)4節冒頭に6関数のID・関数名・所属グループの一覧表を追加し、重複していた文章説明を整理、(2)4節内のグループ見出しレベルを`####`から`###`へ統一（節→個別関数見出しと同階層のグループ見出しが一段深くなっていたアウトライン上の逆転を解消）、(3)2節冒頭の連続する2文の接続をやや単調だった箇所で調整。関数名・引数・戻り値・副作用・例外仕様・対応ID・数値・判断内容・契約は一切変更していない | ClaudeCode |
 | v1.4 | 2026-09-23 | 実装工程での確定を反映。`ServerConfig.BaseUrl`=`http://localhost:5080`、サーバープロジェクト=`src/LearnPlaywright.Server`で確定（名称は維持）。FUNC-43は`dotnet run --project <path> --no-build --no-launch-profile --urls <BaseUrl>`で起動し、保存先を環境変数`DataDirectory`で一時ディレクトリに向ける。起動前にポート使用中を検出した場合は失敗させる。ヘッドフル実行は環境変数`LEARNPLAYWRIGHT_HEADED=1`。FUNC-44は一時ディレクトリも削除する | ClaudeCode |
 | v1.5 | 2026-09-24 | v1.4の変更を本文に反映（実装の2回目レビュー指摘対応）。FUNC-43に処理手順（一時ディレクトリ決定→ポート使用中検出→`--no-build --no-launch-profile --urls`での起動・環境変数`DataDirectory`指定→起動待ち→ブラウザ起動）と対応する例外を記載、4節のコード例（`ServerConfig`・`_dataDirectory`）、FUNC-44の一時ディレクトリ削除、2.1節の確定値を更新 | ClaudeCode |
+| v1.6 | 2026-09-24 | 実装レビュー軽微指摘対応: 2節のCOMP-04・COMP-01関数設計書の版数参照をいずれもv1.2から現行版（v1.4）へ更新 | ClaudeCode |
 
 ## 2. 対応コンポーネント
 
@@ -26,7 +27,7 @@
 - 対応要件ID（コンポーネント設計書 v1.3 3節より）: 機能要件 REQ-08（適用面）, REQ-09／制約 CON-01, CON-04, CON-06, CON-07
 - 実装技術: C# / Playwright for .NET / NUnit（CON-04）
 
-COMP-05はCOMP-04（`docs/03_function_design/COMP-04.md` v1.2）が提供するデータ構造（`FormValues` / `FormValuesTestCase` / `MessageState` / `FormTestIds`）およびヘルパー関数（FUNC-27〜42）にのみ依存し、COMP-04に依存されない（単方向依存、コンポーネント設計書2節）。また、COMP-01（`docs/03_function_design/COMP-01.md` v1.2）が公開するUI（`data-testid`属性、COMP-04 2.1節で確定済み）をPlaywrightのブラウザ自動操作を通じてのみ検証し、COMP-02・COMP-03へのHTTP直接呼び出しやファイルシステムへの直接アクセスは行わない（コンポーネント設計書3節「COMP-01を通じてCOMP-02・COMP-03まで含めたエンドツーエンドの検証を行う」の方針に基づく）。
+COMP-05はCOMP-04（`docs/03_function_design/COMP-04.md` v1.4）が提供するデータ構造（`FormValues` / `FormValuesTestCase` / `MessageState` / `FormTestIds`）およびヘルパー関数（FUNC-27〜42）にのみ依存し、COMP-04に依存されない（単方向依存、コンポーネント設計書2節）。また、COMP-01（`docs/03_function_design/COMP-01.md` v1.4）が公開するUI（`data-testid`属性、COMP-04 2.1節で確定済み）をPlaywrightのブラウザ自動操作を通じてのみ検証し、COMP-02・COMP-03へのHTTP直接呼び出しやファイルシステムへの直接アクセスは行わない（コンポーネント設計書3節「COMP-01を通じてCOMP-02・COMP-03まで含めたエンドツーエンドの検証を行う」の方針に基づく）。
 
 ### 2.1 本工程で確定した仕様決定事項（独自判断・要申し送り）
 

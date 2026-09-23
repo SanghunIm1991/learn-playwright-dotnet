@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-04: テストデータ構造・ヘルパー関数） |
-| 版数 | v1.4 |
+| 版数 | v1.5 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント） |
 
@@ -18,6 +18,7 @@
 | v1.2 | 2026-09-23 | 可読性向上（内容変更なし）。論理面（データ構造・関数名・引数・戻り値・副作用・例外仕様・対応ID・数値・判断内容）は一切変更していない。4節の16関数一覧を単一の長大表から、種別ごとの4グループ（データ生成3件／個別コントロール操作10件／複合ヘルパー2件／メッセージ取得1件）に分割した小見出し＋小テーブル構成に再編し、一覧性を高めた | ClaudeCode |
 | v1.3 | 2026-09-23 | 実装工程での確定・差分を反映。要素特定は`page.GetByTestId`（data-testid属性）で実装。FUNC-32は`EvaluateAsync`方式に確定。FUNC-36は値中の`'`・`\`をエスケープしてセレクタに埋め込む。FUNC-38/39はクリック後、form要素（`FormTestIds.Form`="form"を追加）の`data-request-count`属性が変化するまで自動リトライ付きアサーションで待機する（処理完了待ち）。選択肢値をHTML実装に合わせ`FormOptionValues`クラス（select: apple/banana/cherry、radio: red/green/blue）として追加。`FormFieldLimits`のスライダー値（0/100）はHTML実装値と一致するため据え置き（名称は維持） | ClaudeCode |
 | v1.4 | 2026-09-24 | v1.3の変更を本文に反映（実装の2回目レビュー指摘対応）。3節に`FormTestIds.Form`・`FormOptionValues`を追加、FUNC-30/32/34/35/38/39の要素特定を`GetByTestId`に統一、FUNC-32を`EvaluateAsync`方式に確定、FUNC-36の`radio:null`の根拠をCOMP-01 v1.3（FUNC-02の全選択解除仕様）に合わせて改め、セレクタ用エスケープと制御文字時の`ArgumentException`（2回目レビュー軽微指摘で実装に追加）を記載、FUNC-38/39にクリック後の`data-request-count`変化待ちを記載 | ClaudeCode |
+| v1.5 | 2026-09-24 | 実装レビュー軽微指摘対応: 4節グループ2の表のFUNC-38/39責務要約に「処理完了（`data-request-count`の変化）まで待機する」を追加、2.1節のCOMP-01関数設計書参照をv1.2からv1.4（FUNC-09が`data-testid="form"`に言及）へ更新 | ClaudeCode |
 
 ## 2. 対応コンポーネント
 
@@ -33,7 +34,7 @@ COMP-04はCOMP-05からのみ参照される基盤ライブラリであり、COM
 
 | 事項 | 結論 |
 |---|---|
-| Playwrightからのブラウザ要素特定方式 | `data-testid`属性による要素特定方式を採用する。COMP-01の実装（`src/`配下のHTML）は、テキストボックス・スライダー・プルダウンリスト・ラジオボタン各選択肢・送信ボタン・読み込みボタン・メッセージ表示領域のそれぞれに、4節の`FormTestIds`定数と一致する`data-testid`属性を付与する必要がある。COMP-01関数設計書（v1.2）はJavaScript関数の契約のみを定めHTML属性には言及していないため、本決定はCOMP-01関数設計書と矛盾しないが、COMP-01の実装時に本節の内容を踏まえて`data-testid`属性を追加することを申し送る。 |
+| Playwrightからのブラウザ要素特定方式 | `data-testid`属性による要素特定方式を採用する。COMP-01の実装（`src/`配下のHTML）は、テキストボックス・スライダー・プルダウンリスト・ラジオボタン各選択肢・送信ボタン・読み込みボタン・メッセージ表示領域のそれぞれに、4節の`FormTestIds`定数と一致する`data-testid`属性を付与する必要がある。COMP-01関数設計書（v1.4）はFUNC-09の`formElement`引数説明で`data-testid="form"`に言及している（v1.3で追加）が、それ以外のUIコントロール（テキストボックス・スライダー・プルダウンリスト・ラジオボタン各選択肢・送信ボタン・読み込みボタン・メッセージ表示領域）のHTML属性までは規定していないため、本決定はCOMP-01関数設計書と矛盾しない。 |
 | スライダーのmin/max、プルダウン・ラジオボタンの具体的な選択肢値 | COMP-01の静的HTMLマークアップ（REQ-01、COMP-01関数設計書2.1節）に属する実装詳細であり、本工程時点では未確定。4節の`FormFieldLimits`に仮値（プレースホルダ）を置き、実装工程でCOMP-01の実際のHTML属性値が確定し次第、本ファイルの値を実装値に合わせて更新することを申し送る。**（実装工程で確定済み: スライダー0/100、select: apple/banana/cherry、radio: red/green/blue。3節参照）** |
 | テストケースの命名・識別方法 | `FormValuesTestCase.CaseId`をNUnitのテストケース表示名として用いる（`TestCaseData.SetName(caseId)`）。障害発生時にどの入力パターンが失敗したかをテスト結果から即座に判別できるようにするため。 |
 | 排他制御の要否 | COMP-04はテストコード側の静的データ・ヘルパー関数のみで構成され、複数テスト間で共有される可変状態を持たない（各テストは独立したブラウザコンテキスト・独立したユーザー識別Cookieを用いる前提、COMP-05側の責務）。したがってコンポーネント設計書5.4節の排他制御検討はCOMP-04には適用されない。 |
@@ -187,8 +188,8 @@ FUNC-27〜28はデータ構造（3節）に内包されるため、以降の詳�
 | FUNC-35 | `GetSelectValueAsync` | Playwright操作（DOM読み取り） | プルダウンリストの現在の選択値を取得する | REQ-08 |
 | FUNC-36 | `SetRadioValueAsync` | Playwright操作（DOM書き込み） | 指定値のラジオボタンを選択する | REQ-08 |
 | FUNC-37 | `GetRadioValueAsync` | Playwright操作（DOM読み取り） | 現在選択中のラジオボタンの値を取得する | REQ-08 |
-| FUNC-38 | `ClickSubmitButtonAsync` | Playwright操作（クリック） | 送信ボタンをクリックする | REQ-08 |
-| FUNC-39 | `ClickLoadButtonAsync` | Playwright操作（クリック） | 読み込みボタンをクリックする | REQ-08 |
+| FUNC-38 | `ClickSubmitButtonAsync` | Playwright操作（クリック） | 送信ボタンをクリックし、処理完了（`data-request-count`の変化）まで待機する | REQ-08 |
+| FUNC-39 | `ClickLoadButtonAsync` | Playwright操作（クリック） | 読み込みボタンをクリックし、処理完了（`data-request-count`の変化）まで待機する | REQ-08 |
 
 #### グループ3: Playwright操作・複合ヘルパー（2件）
 
