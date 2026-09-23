@@ -53,7 +53,7 @@ Playwrightを用いたブラウザアプリのテスト自動化を学ぶため�
 
 ## 実装環境
 
-- .NET SDK: `8.0.408`・`9.0.314`・`10.0.401`が導入済み（`C:\Program Files\dotnet\sdk`）。`global.json`で`10.0.401`（rollForward: latestPatch）に固定済み。
+- .NET SDK: `8.0.408`・`9.0.314`・`10.0.401`が導入済み（`C:\Program Files\dotnet\sdk`）。`global.json`で.NET 10系（`10.0.100`以上、rollForward: latestFeature＝導入済みの最新10.0系SDK）に固定済み（教材読者の環境差を吸収するため。`docs/review_log.md`参照）。
 - 複数SDKが混在する環境のため、実装工程着手時に `global.json` をプロジェクトルートに配置し `"sdk": { "version": "10.0.x" }` で固定する（他バージョンとの取り違え防止）。各プロジェクトファイル（`.csproj`）の `TargetFramework` も `net10.0` を明記する。
 - Node.js / npm: 未導入（不要）。Playwright用Chromiumは2026-09-23に導入済み（`%LOCALAPPDATA%\ms-playwright`、ユーザー許可の上でClaudeが実行）。このPCにはPowerShell 7（pwsh）が無いため、`playwright.ps1`はWindows PowerShellで`powershell -ExecutionPolicy Bypass -File tests/LearnPlaywright.Tests/bin/Debug/net10.0/playwright.ps1 install chromium`として実行する（Bypassは当該プロセスのみ）。
 - 標準コマンド（`.claude/settings.json`の`permissions.allow`に登録済み）: ビルド`dotnet build`、全テスト`dotnet test`、サンプルサイト起動`dotnet run --project src/LearnPlaywright.Server`（http://localhost:5080/ ）。E2Eテストはサーバーを自動起動するため、手動起動したサーバーは停止してから`dotnet test`を実行する（ポート使用中を検出するとE2Eは失敗する）。
