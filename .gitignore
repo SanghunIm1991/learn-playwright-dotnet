@@ -1,0 +1,24 @@
+# .NET build outputs
+bin/
+obj/
+*.user
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# IDE
+.vs/
+.idea/
+*.suo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Secrets / local config (should never be committed)
+*.local.json
+appsettings.Development.json
+.env
