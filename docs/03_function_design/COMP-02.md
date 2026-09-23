@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-02: バックエンドAPI／HTTP層） |
-| 版数 | v1.0 |
+| 版数 | v1.1 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント） |
 
@@ -14,6 +14,7 @@
 | 版数 | 日付 | 変更内容 | 変更者 |
 |---|---|---|---|
 | v1.0 | 2026-09-23 | 初版作成 | ClaudeCode |
+| v1.1 | 2026-09-23 | 論理レビュー指摘対応: FUNC-13/17の対応要件からREQ-05（COMP-01専属要件）を削除、FUNC-14のロックget-or-create操作の原子性を明記、FUNC-16/17の手順1(FUNC-10)・手順2(FUNC-11)の例外処理を追記、CookieWriteOptions.maxAgeのnull＝永続Cookieという誤った説明を修正、SaveResult.success:falseの契約（検証エラー専用）を明記、FUNC-14/15の対応要件からNFR-02を削除 | ClaudeCode |
 
 ## 2. 対応コンポーネント
 
@@ -49,6 +50,16 @@ FormDataDto = {
 SaveResult = {
   success: bool
   // 失敗理由の詳細化（検証エラーの内容等）は本設計のスコープ外とし、COMP-03の関数設計で必要に応じて拡張する。
+  //
+  // 【契約（COMP-03の関数設計への申し送り事項）】 success:false は、COMP-03における入力値検証エラー
+  // （FormDataDtoのフィールド値が業務上許容される範囲・形式でない場合等）の場合にのみ用いる。
+  // ファイルI/O異常（ディスク書き込み失敗、権限エラー等）や、その他の検証エラー以外の失敗は
+  // success:false で表現せず、例外をthrowする契約とする。
+  // 理由: FUNC-16（HandlePostFormData）は「success:false → 400 Bad Request」「例外 → 500 Internal Server Error」
+  // という区別でHTTPステータスコードを決定する（手順7・8参照）。この区別は「利用者の入力に起因する
+  // 検証エラー（400が適切）」と「サーバー側の想定外の失敗（500が適切）」というHTTPの意味論上の区別に
+  // 対応させる必要があるため、success:false の用途を検証エラーに限定する。COMP-03の関数設計工程は
+  // この契約に従って保存処理を設計すること。
 }
 
 LoadResult = {
@@ -59,7 +70,7 @@ LoadResult = {
 CookieWriteOptions = {
   httpOnly: bool,     // true固定を想定（JavaScriptからの読み取りを許容しない。実装工程で最終確認）
   path:     string,   // "/" を想定
-  maxAge:   number | null  // 有効期限。本設計では無期限（セッションCookieではなく永続Cookie）とし、具体値は実装工程で確定する
+  maxAge:   number | null  // Cookieの有効期間（秒）。null（MaxAge/Expires属性を付与しない）は実際にはセッションCookie（ブラウザを閉じると消える）を意味し、永続Cookieにはならない点に注意する。REQ-06によるユーザー識別の継続（再訪問時も同一ユーザー識別文字列を維持する実効性）にはブラウザを閉じた後も値が保持される永続Cookieが必要であるため、本設計ではnullではなく具体的な有効期間を既定値とする方針とし、暫定値として1年（31536000秒）を置く。具体値は実装工程で最終確定する
 }
 ```
 
@@ -85,11 +96,11 @@ CookieWriteOptions = {
 | FUNC-10 | `GetOrIssueUserId` | ロジック（Cookie値の解決） | Cookie値からユーザー識別文字列を決定し、未設定なら新規発行する | REQ-06 |
 | FUNC-11 | `IssueUserIdCookie` | HTTP応答書き込み | 新規発行したユーザー識別文字列をレスポンスのSet-Cookieとして付与する | REQ-06 |
 | FUNC-12 | `ParseFormDataRequestBody` | リクエスト解析 | POSTリクエストボディの生JSON文字列を`FormDataDto`へデシリアライズする | REQ-02, REQ-03 |
-| FUNC-13 | `SerializeFormDataToJson` | レスポンス生成 | `FormDataDto`をGETレスポンス用のJSON文字列へ変換する | REQ-04, REQ-05 |
-| FUNC-14 | `AcquireUserLock` | 排他制御 | ユーザー識別文字列単位の排他ロックを取得する | NFR-02, NFR-06 |
-| FUNC-15 | `ReleaseUserLock` | 排他制御 | FUNC-14で取得したロックを解放する | NFR-02, NFR-06 |
+| FUNC-13 | `SerializeFormDataToJson` | レスポンス生成 | `FormDataDto`をGETレスポンス用のJSON文字列へ変換する | REQ-04 |
+| FUNC-14 | `AcquireUserLock` | 排他制御 | ユーザー識別文字列単位の排他ロックを取得する | NFR-06 |
+| FUNC-15 | `ReleaseUserLock` | 排他制御 | FUNC-14で取得したロックを解放する | NFR-06 |
 | FUNC-16 | `HandlePostFormData` | 統括（POSTエンドポイント処理） | POST処理（Cookie解決→ボディ解析→ロック→COMP-03保存委譲→ステータス決定）を統括する | REQ-02, REQ-03, REQ-06, NFR-02, NFR-06, CON-01, CON-03, CON-05 |
-| FUNC-17 | `HandleGetFormData` | 統括（GETエンドポイント処理） | GET処理（Cookie解決→ロック→COMP-03読込委譲→ステータス/本文決定）を統括する | REQ-04, REQ-05, REQ-06, NFR-02, NFR-06, CON-01, CON-03, CON-05 |
+| FUNC-17 | `HandleGetFormData` | 統括（GETエンドポイント処理） | GET処理（Cookie解決→ロック→COMP-03読込委譲→ステータス/本文決定）を統括する | REQ-04, REQ-06, NFR-02, NFR-06, CON-01, CON-03, CON-05 |
 | FUNC-18 | `MapFormDataEndpoints` | 統括（ルーティング登録） | ASP.NET CoreルーティングへPOST/GETエンドポイントを登録し、HttpContextとFUNC-16/17を橋渡しする | REQ-02, REQ-03, REQ-04, REQ-06, CON-01, CON-03 |
 
 以降、各関数の詳細を記載する。
@@ -142,7 +153,7 @@ CookieWriteOptions = {
 - **戻り値**: `string`（JSON文字列）
 - **副作用**: なし
 - **例外/エラー時の挙動**: `data`が`null`/`undefined`の場合、`ArgumentNullException`をthrowする
-- **対応要件**: REQ-04, REQ-05
+- **対応要件**: REQ-04
 
 ### FUNC-14: AcquireUserLock
 
@@ -151,8 +162,9 @@ CookieWriteOptions = {
   - `userId: string`
 - **戻り値**: なし（呼び出しはロック取得完了までブロックする同期的な操作として定義する。実装工程で非同期版〈`Task`化〉が必要と判断した場合はその旨を実装工程の記録に残す）
 - **副作用**: あり — プロセス内の共有状態（ユーザー識別文字列ごとのロックオブジェクトを保持する辞書）の参照・更新。ロック取得中は呼び出しスレッドをブロックする
+- **ロックオブジェクトのget-or-create操作の原子性**: 指定した`userId`に対応するロックインスタンスが辞書に未登録の場合、新規に生成して登録する（get-or-create）。この処理は、未登録の同一`userId`に対して複数リクエストが同時に到達した場合でも、必ず単一のロックインスタンスを共有する結果になることを保証しなければならない。実装は`ConcurrentDictionary<string, SemaphoreSlim>.GetOrAdd`のような、参照の取得と生成・登録を単一のアトミックな操作として行う手段を用いること。`TryGetValue`で存在確認し、なければ新規`SemaphoreSlim`を生成して`Add`（またはインデクサ代入）するという非アトミックな実装は、2つのスレッドが共に「未登録」と判定した場合にそれぞれ別個のロックインスタンスを生成・使用してしまい、同一ユーザー識別文字列に対する排他制御が機能しなくなる（4節が前提とするファイル破損・データ不整合対策が無効化される）ため、採用しない。
 - **例外/エラー時の挙動**: `userId`が`null`/`undefined`または空文字列の場合、`ArgumentException`をthrowする
-- **対応要件**: NFR-02, NFR-06（コンポーネント設計書5.4節「排他制御・ロックの要否検討」への回答として新設。個別の機能要件IDには直接紐付かない横断的な品質対応）
+- **対応要件**: NFR-06（コンポーネント設計書5.4節「排他制御・ロックの要否検討」への回答として新設。個別の機能要件IDには直接紐付かない横断的な品質対応。NFR-02〈ローカルホスト限定〉はネットワークバインディングに関する要件であり、本関数が対応するプロセス内排他制御とは論理的に別種の関心事のため対応要件から除外する）
 
 ### FUNC-15: ReleaseUserLock
 
@@ -164,7 +176,7 @@ CookieWriteOptions = {
 - **例外/エラー時の挙動**:
   - `userId`が`null`/`undefined`または空文字列の場合、`ArgumentException`をthrowする
   - 対応するロックが未取得の状態（FUNC-14を呼ばずに呼び出した等の誤用）での挙動は、本論理設計では規定しない。呼び出し元（FUNC-16/17）がFUNC-14と必ず対で使用する規約を前提とする。実装工程で用いる同期プリミティブ（`SemaphoreSlim.Release`等）が誤用時に例外をthrowする場合はそれに委ねてよい
-- **対応要件**: NFR-02, NFR-06
+- **対応要件**: NFR-06（NFR-02〈ローカルホスト限定〉はFUNC-14と同様の理由で対応要件から除外する）
 
 ### FUNC-16: HandlePostFormData
 
@@ -175,9 +187,9 @@ CookieWriteOptions = {
   - `deps: { saveFormData: (userId: string, data: FormDataDto) -> SaveResult, setCookieFn?: (...) -> void, idGenerator?: () -> string }` — 依存オブジェクト。`saveFormData`はCOMP-03への委譲呼び出し（必須）。`setCookieFn`・`idGenerator`は省略可でテスト時にモックを注入できるようにする
 - **戻り値**: `{ statusCode: number }`（200 | 400 | 500 のいずれか。Cookie発行自体は`deps.setCookieFn`呼び出しを通じた副作用として行われるため、戻り値には含めない＝副作用と戻り値を分離する）
 - **副作用**: あり — FUNC-10・FUNC-11（新規発行時のみ）・FUNC-12・FUNC-14・FUNC-15・`deps.saveFormData`（COMP-03呼び出し、ファイルI/O発生）を介した間接的副作用
-- **処理順序（論理フロー）**:
-  1. FUNC-10でユーザー識別文字列を解決する
-  2. `isNewlyIssued`が`true`の場合、FUNC-11でCookieを付与する
+- **処理順序（論理フロー）**: 手順1〜9全体を一つのtry-catchで囲み、いずれの手順で例外が送出されても（手順4以降でロックを取得済みの場合は手順6のfinally相当の解放処理を経た上で）呼び出し元へ再送出せず`{ statusCode: 500 }`を返すことで、「常に`{ statusCode }`を返す」という戻り値契約を満たす。
+  1. FUNC-10でユーザー識別文字列を解決する。`idGenerator`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500 }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
+  2. `isNewlyIssued`が`true`の場合、FUNC-11でCookieを付与する。`setCookieFn`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500 }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
   3. FUNC-12でリクエストボディを`FormDataDto`へ解析する。ここで例外が発生した場合は手順4以降を行わず`{ statusCode: 400 }`を返す
   4. FUNC-14でユーザー識別文字列に対するロックを取得する
   5. `deps.saveFormData(userId, dto)`を呼び出す（COMP-03への委譲）
@@ -185,7 +197,7 @@ CookieWriteOptions = {
   7. 手順5が例外をthrowした場合: `{ statusCode: 500 }`を返す
   8. 手順5が`{ success: false }`を返した場合: `{ statusCode: 400 }`を返す
   9. 手順5が`{ success: true }`を返した場合: `{ statusCode: 200 }`を返す
-- **例外/エラー時の挙動**: 上記処理順序の手順3・6・7に集約。呼び出し元（FUNC-18）へは例外を再送出せず、常に`{ statusCode }`を返す
+- **例外/エラー時の挙動**: 上記処理順序の手順1・2・3・6・7に集約。手順1（`idGenerator`）・手順2（`setCookieFn`）の例外も手順7（`saveFormData`）の例外と同様にcatchして500として扱い、いずれの手順で例外が発生しても呼び出し元（FUNC-18）へは例外を再送出せず、常に`{ statusCode }`を返す
 - **対応要件**: REQ-02, REQ-03, REQ-06, NFR-02, NFR-06, CON-01, CON-03, CON-05
 
 ### FUNC-17: HandleGetFormData
@@ -198,17 +210,17 @@ CookieWriteOptions = {
   - `statusCode`: 200（存在する）| 404（存在しない）| 500（COMP-03側の未処理例外等）
   - `bodyJson`: `statusCode: 200`の場合のみFUNC-13でシリアライズしたJSON文字列。それ以外は`null`（レスポンス本文なし）
 - **副作用**: あり — FUNC-10・FUNC-11（新規発行時のみ）・FUNC-14・FUNC-15・`deps.loadFormData`（COMP-03呼び出し、ファイル読み取りI/O）を介した間接的副作用
-- **処理順序（論理フロー）**:
-  1. FUNC-10でユーザー識別文字列を解決する
-  2. `isNewlyIssued`が`true`の場合、FUNC-11でCookieを付与する（新規発行時は対応ファイルが存在しないため、後述の手順4は必ず「存在しない」分岐に合流する。コンポーネント設計書4.3節の通り）
+- **処理順序（論理フロー）**: 手順1〜8全体を一つのtry-catchで囲み、いずれの手順で例外が送出されても（手順3以降でロックを取得済みの場合は手順5のfinally相当の解放処理を経た上で）呼び出し元へ再送出せず`{ statusCode: 500, bodyJson: null }`を返すことで、「常に`{ statusCode }`を返す」という戻り値契約を満たす。
+  1. FUNC-10でユーザー識別文字列を解決する。`idGenerator`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500, bodyJson: null }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
+  2. `isNewlyIssued`が`true`の場合、FUNC-11でCookieを付与する（新規発行時は対応ファイルが存在しないため、後述の手順4は必ず「存在しない」分岐に合流する。コンポーネント設計書4.3節の通り）。`setCookieFn`が例外をthrowした場合、それ以降の手順を行わず`{ statusCode: 500, bodyJson: null }`を返す（ロック未取得のためFUNC-15の呼び出しは不要）
   3. FUNC-14でユーザー識別文字列に対するロックを取得する
   4. `deps.loadFormData(userId)`を呼び出す（COMP-03への委譲）
   5. 手順4の成否・例外の有無にかかわらず、FUNC-15でロックを解放する
   6. 手順4が例外をthrowした場合: `{ statusCode: 500, bodyJson: null }`を返す
   7. 手順4が`{ found: false, data: null }`を返した場合: `{ statusCode: 404, bodyJson: null }`を返す
   8. 手順4が`{ found: true, data }`を返した場合: FUNC-13で`data`をJSON文字列化し、`{ statusCode: 200, bodyJson: <JSON文字列> }`を返す
-- **例外/エラー時の挙動**: 上記処理順序の手順5・6に集約。呼び出し元（FUNC-18）へは例外を再送出しない
-- **対応要件**: REQ-04, REQ-05（復元用データの提供）, REQ-06, NFR-02, NFR-06, CON-01, CON-03, CON-05
+- **例外/エラー時の挙動**: 上記処理順序の手順1・2・5・6に集約。手順1（`idGenerator`）・手順2（`setCookieFn`）の例外も手順6（`loadFormData`）の例外と同様にcatchして500として扱い、いずれの手順で例外が発生しても呼び出し元（FUNC-18）へは例外を再送出しない
+- **対応要件**: REQ-04（復元用データの提供）, REQ-06, NFR-02, NFR-06, CON-01, CON-03, CON-05
 
 ### FUNC-18: MapFormDataEndpoints
 
@@ -266,5 +278,5 @@ flowchart TD
 
 - **テストケース設計への転用可能性**: 各関数の引数・戻り値・例外条件を表形式で明示しており、境界値（Cookie未設定/空文字列、JSON構文エラー、`success:false`、`found:false`、ロック取得中の例外等）をそのままテストケースの入力・期待値として転用できる粒度とした。
 - **副作用とロジックの分離、COMP-03への委譲の明確さ**: FUNC-10・FUNC-12・FUNC-13は副作用なし（純粋関数）。FUNC-11・FUNC-14・FUNC-15は単一の副作用（Cookie書き込み／ロック操作）のみを持つ。FUNC-16・FUNC-17はCOMP-03の保存/読込処理を`deps`引数経由の間接呼び出しとして受け取り、COMP-03の内部実装（ファイルI/O・JSON変換・検証ロジック）には一切立ち入らない。
-- **責務網羅性**: REQ-02（POST受付・COMP-03への委譲）、REQ-03（保存要求のHTTP受付）、REQ-04（GET受付・未存在判定の反映）、REQ-06（Cookie読取・新規発行）、NFR-02（ローカルホスト限定はASP.NET Core起動設定側の対応であり関数設計の対象外だが、FUNC-14/15の排他制御によりNFR-02が想定する単一ホスト内での整合性を補強）、NFR-06（HTTP層とロジック層の分離。FUNC-16/17と`deps`によるDI分離で充足）、CON-01/03/05（ローカル実行・C#/.NET 10・ASP.NET Core・認証機構なしを前提とした設計）、CON-06/07（本ドキュメントおよび今後の実装コードに秘密情報・個人情報を含めない横断的規約。個別関数固有の設計事項ではないため関数ごとの対応要件欄には明記していない）を過不足なくカバーしていることを確認した。
+- **責務網羅性**: REQ-02（POST受付・COMP-03への委譲）、REQ-03（保存要求のHTTP受付）、REQ-04（GET受付・未存在判定の反映）、REQ-06（Cookie読取・新規発行）、NFR-02（ローカルホスト限定はASP.NET Core起動設定側の対応であり関数設計の対象外。FUNC-16/17がHTTPエンドポイント処理の統括関数としてこれを対応要件に含める一方、FUNC-14/15が担うのはユーザー識別文字列単位のプロセス内排他制御であり、ネットワークバインディングに関するNFR-02とは論理的に別種の関心事のためFUNC-14/15の対応要件からは除外した）、NFR-06（HTTP層とロジック層の分離。FUNC-16/17と`deps`によるDI分離で充足）、CON-01/03/05（ローカル実行・C#/.NET 10・ASP.NET Core・認証機構なしを前提とした設計）、CON-06/07（本ドキュメントおよび今後の実装コードに秘密情報・個人情報を含めない横断的規約。個別関数固有の設計事項ではないため関数ごとの対応要件欄には明記していない）を過不足なくカバーしていることを確認した。
 - **COMP-01 FUNC-04との整合性**: HTTPステータスコード404（対応ファイル未存在時）の採用で一致。COMP-01側の追随修正は不要と判断した（2.1節参照）。
