@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-01: フロントエンドUI） |
-| 版数 | v1.0 |
+| 版数 | v1.1 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント） |
 
@@ -14,6 +14,7 @@
 | 版数 | 日付 | 変更内容 | 変更者 |
 |---|---|---|---|
 | v1.0 | 2026-09-23 | 初版作成 | ClaudeCode |
+| v1.1 | 2026-09-23 | FUNC-02のvalues.text/slider想定外値時の挙動を明記（軽微指摘対応） | ClaudeCode |
 
 このフェーズでは論理的な正しさ・網羅性・テスト容易性を優先し、文章表現の可読性向上は後段の別サブエージェント（design-doc-readability-editor等）の担当とする。
 
@@ -83,6 +84,7 @@ FormElements = {
 - **副作用**: あり — `textInput.value`、`slider.value`、`select.value`、該当ラジオボタンの`.checked`を書き換える（DOM書き込み）
 - **例外/エラー時の挙動**:
   - `elements`または`values`が`null`/`undefined`の場合: `TypeError`をthrowする
+  - `values.text`・`values.slider`が想定外の値（`undefined`等）の場合: 例外は投げず、該当DOM要素にそのまま代入する（ブラウザのDOM値セッターに委ねる。画面表示が乱れる可能性はあるが、致命的なエラーにはしない設計とする）
   - `values.select`が`select`要素のいずれの選択肢（`option`のvalue）にも一致しない場合: 例外を投げず、`select`要素の選択状態は変更しない（スキップ）
   - `values.radio`が`radioButtons`のいずれのvalueにも一致しない場合: 例外を投げず、ラジオボタンの選択状態は変更しない（スキップ。全選択解除等の破壊的操作は行わない）
   - `values.radio`が`null`の場合: ラジオボタンの選択状態には一切手を加えない（既存の選択状態を保持する）
