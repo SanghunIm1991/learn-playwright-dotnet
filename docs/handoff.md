@@ -2,8 +2,16 @@
 
 ## 現在の申し送り
 
-- **公開済み（2026-09-23）**: https://github.com/SanghunIm1991/learn-playwright-dotnet （Public、ブランチmain、MIT）。以後のpushも毎回push前スキャンを行い、都度承認を得る（CLAUDE.md「push運用方針」）。
-- **ユーザー側の後片付け**: 作業用クローンとリポジトリ外のバックアップフォルダ（旧履歴を含む）、`docs/git_filter_repo_guide/private/`（伏せ字なしの実物、.gitignore対象）の削除時期はユーザーが判断する。
+- **公開済み（2026-09-23）**: https://github.com/SanghunIm1991/learn-playwright-dotnet （Public、ブランチmain、MIT）。以後のpushも毎回push前スキャン（`docs/05_publication/publication_manual.md` 4章）を行い、都度承認を得る（CLAUDE.md「push運用方針」）。
+- **未pushのコミットあり（次セッションの最初に確認）**: 公開完了の記録コミットと本申し送りの更新コミットが`origin/main`より先行している（`git status -sb`で`ahead`を確認）。記録のみの変更。push前スキャンを最新コミットまで行い、ユーザーの承認を得てから`git push`する。
+- **ユーザー側の後片付け（削除時期はユーザーが判断、Claudeは削除しない）**:
+  - 作業用クローン2つ（リポジトリと同じドライブの`LearnPlaywright-rewrite`・`LearnPlaywright-rewrite2`）
+  - リポジトリ外のバックアップフォルダ（bundle・zip・旧`.git`2つ・指示ファイル。旧履歴と旧メールアドレスを含む。場所は`git-history-rewrite`実施時にユーザーと決めたもの）
+  - `docs/git_filter_repo_guide/private/`（伏せ字なしの実物、.gitignore対象）
+  - git-filter-repo（ユーザー用フォルダの専用仮想環境）は他リポジトリでも使うため残す想定。削除方法は`git-history-rewrite`スキルの手順0
+- **このセッションで変わった全プロジェクト共通のルール**（ユーザーレベルのスキル、次セッションから有効）:
+  - `git-conventions`: author・committerはユーザー本人（`--author`を指定せずGit設定を使う。`user.email`はGitHubのnoreplyアドレスに設定済み）。Claudeの関与は`[claude]`接頭辞と`Co-Authored-By`トレーラー。最初のコミット前に`git config user.email`がnoreplyかを確認する
+  - `git-history-rewrite`（新規）: 過去の履歴の修正。書き換えとforce pushはユーザーが`!`付きで実行し、Claudeは調査・バックアップ・指示ファイル作成・検証を担当する
 - **後日の再レビュー**: ユーザー指示「レビューは1回に制限し、後日再レビュー」（`docs/qa_log.md`参照）。対象は`docs/review_log.md`末尾の「レビュー回数制限下で進めた成果物」表（COMP-06の可読性向上フェーズ、教材0章の追記部分等）。公開後に実施してよい。
 - 要確認の独自判断: 読み込み時に保存データの`radio`が`null`なら全ラジオの選択を解除する仕様（REQ-05解釈、`docs/qa_log.md`の実装レビュー指摘#8）。
 
