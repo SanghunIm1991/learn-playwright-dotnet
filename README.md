@@ -47,6 +47,8 @@ dotnet test
 
 学習を始める場合は [`docs/tutorial/README.md`](docs/tutorial/README.md) から読み進めてください。
 
+> **開発用ファイルについて**: `CLAUDE.md`、`.claude/`、`docs/qa_log.md`・`docs/review_log.md`・`docs/handoff.md`は、作者が Claude Code を使って開発した際の作業ルール・設定・記録です。作者のローカル環境にある Claude Code の設定やスキルを前提にした記述を含むため、参照先がこのリポジトリに無い場合があります。このリポジトリを Claude Code で開くと、`.claude/settings.json` のプロジェクト設定（コマンドの許可など）が適用されます。不要であれば削除または変更してから使ってください。学習やテストの実行にはこれらのファイルは必要ありません。
+
 ## ライセンス
 
 [MIT License](LICENSE)
