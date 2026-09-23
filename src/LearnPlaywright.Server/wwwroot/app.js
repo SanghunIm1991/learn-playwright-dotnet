@@ -37,8 +37,11 @@ function applyFormValues(elements, values) {
     elements.select.value = values.select;
   }
 
-  // radioがnull、または一致する選択肢がない場合は既存の選択状態を保持する
-  if (values.radio !== null && values.radio !== undefined) {
+  // radioがnull（未選択で保存）の場合は全ての選択を解除し、保存時の「未選択」を復元する。
+  // 一致する選択肢がない場合は既存の選択状態を保持する
+  if (values.radio === null || values.radio === undefined) {
+    Array.from(elements.radioButtons).forEach((radio) => { radio.checked = false; });
+  } else {
     const target = Array.from(elements.radioButtons).find((radio) => radio.value === values.radio);
     if (target) {
       target.checked = true;

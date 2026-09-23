@@ -45,7 +45,7 @@ public static class FormFieldLimits
     public const int SelectMaxLength = 200;
     public const int RadioMaxLength = 200;
 
-    // COMP-01（wwwroot/index.html）のスライダー min/max 属性の実装値
+    // COMP-01（wwwroot/index.html）のスライダー min/max 属性の実装値（値は確定済み。名称は関数設計書との対応のため維持）
     public const double SliderMinPlaceholder = 0;
     public const double SliderMaxPlaceholder = 100;
 }

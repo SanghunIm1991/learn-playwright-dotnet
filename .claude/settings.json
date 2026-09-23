@@ -6,6 +6,13 @@
       "Bash(git status *)",
       "PowerShell(git status *)",
       "Bash(cat)",
+      "Bash(dotnet build)",
+      "Bash(dotnet test)",
+      "Bash(dotnet test tests/*)",
+      "Bash(dotnet run --project src/LearnPlaywright.Server)",
+      "PowerShell(dotnet build)",
+      "PowerShell(dotnet test)",
+      "PowerShell(dotnet run --project src/LearnPlaywright.Server)",
       "WebSearch"
     ],
     "deny": [

@@ -10,7 +10,7 @@ namespace LearnPlaywright.Tests.Scenarios;
 public static class ServerConfig
 {
     public const string BaseUrl = "http://localhost:5080";
-    public const string ServerProjectPathPlaceholder = "src/LearnPlaywright.Server";
+    public const string ServerProjectPathPlaceholder = "src/LearnPlaywright.Server"; // リポジトリルートからの相対パス（確定済み。名称は設計書との対応のため維持）
     public static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(30);
 
     // 環境変数 LEARNPLAYWRIGHT_HEADED=1 でブラウザ画面を表示して実行する（デバッグ用）
@@ -36,6 +36,14 @@ public sealed class FormDataScenarioTests
     {
         // 保存データはテスト専用の一時ディレクトリへ書き込み、開発用の保存先を汚さない
         _dataDirectory = Path.Combine(Path.GetTempPath(), "LearnPlaywright-e2e-" + Guid.NewGuid().ToString("N"));
+
+        // 別のサーバー（手動起動した開発用サーバー等）が既にポートを使っていると、
+        // そちらに対してテストが走ってしまうため、起動前に検出して失敗させる
+        if (await IsPortInUseAsync())
+        {
+            throw new InvalidOperationException(
+                $"{ServerConfig.BaseUrl} is already in use. Stop the running server (e.g. 'dotnet run') before running the tests.");
+        }
 
         var startInfo = new ProcessStartInfo("dotnet")
         {
@@ -154,6 +162,99 @@ public sealed class FormDataScenarioTests
         {
             MessageState message = await GetMessageAsync(_page!);
             Assert.That(message.Type, Is.EqualTo("info"));
+        }
+    }
+
+    // E2E-03（テスト工程で追加）: 6種類のUIコントロールと個人情報入力への注意書きが表示される
+    [Test]
+    public async Task PageShowsAllControlsAndNotice()
+    {
+        string[] testIds =
+        [
+            FormTestIds.TextInput, FormTestIds.Slider, FormTestIds.Select,
+            FormTestIds.SubmitButton, FormTestIds.LoadButton,
+        ];
+        foreach (string testId in testIds)
+        {
+            await Assertions.Expect(_page!.GetByTestId(testId)).ToBeVisibleAsync();
+        }
+        await Assertions.Expect(_page!.GetByTestId(FormTestIds.RadioOption)).ToHaveCountAsync(FormOptionValues.RadioOptions.Count);
+        await Assertions.Expect(_page!.GetByTestId("notice")).ToContainTextAsync("個人情報");
+    }
+
+    // E2E-04（テスト工程で追加）: Cookie未設定のアクセスでユーザー識別用Cookie（HttpOnly）が発行される
+    [Test]
+    public async Task UserIdCookieIsIssuedOnFirstRequest()
+    {
+        Assert.That(await _context!.CookiesAsync(), Is.Empty);
+        await ClickLoadButtonAsync(_page!);
+
+        var cookie = (await _context!.CookiesAsync()).SingleOrDefault(c => c.Name == "lp_user_id");
+        Assert.That(cookie, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(cookie!.Value, Is.Not.Empty);
+            Assert.That(cookie.HttpOnly, Is.True);
+        });
+    }
+
+    // E2E-05（レビュー指摘で追加）: 復元時、未選択(radio:null)で保存されたデータは画面上の選択を解除し、
+    // 選択肢に無いselect値は現在の選択を変更しない（サーバー応答をRouteAsyncで差し替えて検証）
+    [Test]
+    public async Task RestoreClearsRadioAndSkipsUnknownSelect()
+    {
+        await _page!.RouteAsync("**/api/form-data", route => route.Request.Method == "GET"
+            ? route.FulfillAsync(new RouteFulfillOptions
+            {
+                Status = 200,
+                ContentType = "application/json",
+                Body = "{\"text\":\"restored\",\"slider\":10,\"select\":\"unknown\",\"radio\":null}",
+            })
+            : route.ContinueAsync());
+
+        await SetFormValuesAsync(_page!, new FormValues("before", 90, "cherry", "red"));
+        await ClickLoadButtonAsync(_page!);
+
+        FormValues restored = await GetFormValuesAsync(_page!);
+        Assert.That(restored, Is.EqualTo(new FormValues("restored", 10, "cherry", null)));
+    }
+
+    // E2E-06（レビュー指摘で追加）: 読み込み時にサーバーが500を返した場合はエラーメッセージを表示する
+    [Test]
+    public async Task LoadServerErrorShowsErrorMessage()
+    {
+        await _page!.RouteAsync("**/api/form-data", route => route.FulfillAsync(new RouteFulfillOptions { Status = 500 }));
+        await ClickLoadButtonAsync(_page!);
+
+        MessageState message = await GetMessageAsync(_page!);
+        Assert.That(message.Type, Is.EqualTo("error"));
+    }
+
+    // E2E-07（レビュー指摘で追加）: application/json 以外のPOSTは415で拒否される（他サイトからの単純リクエスト対策）
+    [Test]
+    public async Task PostWithNonJsonContentTypeIsRejected()
+    {
+        var response = await _context!.APIRequest.PostAsync(ServerConfig.BaseUrl + "/api/form-data", new APIRequestContextOptions
+        {
+            Headers = new Dictionary<string, string> { ["Content-Type"] = "text/plain" },
+            Data = "{\"text\":\"a\",\"slider\":1,\"select\":\"apple\",\"radio\":null}",
+        });
+        Assert.That(response.Status, Is.EqualTo(415));
+    }
+
+    private static async Task<bool> IsPortInUseAsync()
+    {
+        var uri = new Uri(ServerConfig.BaseUrl);
+        using var client = new System.Net.Sockets.TcpClient();
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+            await client.ConnectAsync(uri.Host, uri.Port, cts.Token);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
 

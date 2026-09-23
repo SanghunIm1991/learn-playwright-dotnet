@@ -34,9 +34,9 @@ Playwrightを用いたブラウザアプリのテスト自動化を学ぶため�
 - [x] .NET 10 SDK導入（2026-09-23、ユーザーが導入完了。10.0.401）
 - [x] 要件定義（`docs/01_requirements/requirements.md` v1.4、2026-09-23完了。REQ-01〜12/NFR-01〜08/CON-01〜07。NFR-02はCOMP-02/05の関数設計工程で判明した解釈曖昧さの解消のためv1.3/v1.4で改訂済み）
 - [x] コンポーネント設計（`docs/02_component_design/component_design.md` v1.3、2026-09-23完了。COMP-01〜06）
-- [ ] 関数設計（COMP-01〜05完了、COMP-06進行中）
-- [ ] 実装
-- [ ] テスト
+- [x] 関数設計（COMP-01〜06完了。COMP-06の可読性向上フェーズはユーザー指示〈レビュー1回制限〉により保留、`docs/review_log.md`参照）
+- [x] 実装（2026-09-23、`src/`・`tests/`・`docs/tutorial/`。実装レビュー1回、指摘12件対応済み）
+- [ ] テスト（自動テスト81件全件成功。**ユーザーによる成果物確認・デプロイ移行承認待ち**）
 - [ ] デプロイ（GitHub Public公開）
 
 ## 確定した仕様
@@ -53,10 +53,10 @@ Playwrightを用いたブラウザアプリのテスト自動化を学ぶため�
 
 ## 実装環境
 
-- .NET SDK: このPCには2026-09-23時点で `8.0.408`・`9.0.314` が導入済み（`C:\Program Files\dotnet\sdk`）。本プロジェクトが要求する **.NET 10 SDK は未導入**。ユーザー自身が公式インストーラー（https://dotnet.microsoft.com/download/dotnet/10.0 ）で導入する（導入完了後、`dotnet --list-sdks` で `10.0.x` の表示を確認する）。
+- .NET SDK: `8.0.408`・`9.0.314`・`10.0.401`が導入済み（`C:\Program Files\dotnet\sdk`）。`global.json`で`10.0.401`（rollForward: latestPatch）に固定済み。
 - 複数SDKが混在する環境のため、実装工程着手時に `global.json` をプロジェクトルートに配置し `"sdk": { "version": "10.0.x" }` で固定する（他バージョンとの取り違え防止）。各プロジェクトファイル（`.csproj`）の `TargetFramework` も `net10.0` を明記する。
-- Node.js / npm: 未導入。Playwright for .NET を採用するため、テストコード執筆・実行には不要（Playwrightのブラウザ本体インストールは `dotnet build` 後に生成される `playwright.ps1` 経由で行う。詳細は実装・テスト工程着手時に確定し、ここに追記する）。
-- 具体的な起動・実行コマンド（`dotnet run`、`dotnet test` 等の標準形）は実装工程着手時に確定し、ここと `.claude/settings.json` の `permissions.allow` に追記する（「プログラム実行の承認について」章参照）。
+- Node.js / npm: 未導入（不要）。Playwright用Chromiumは2026-09-23に導入済み（`%LOCALAPPDATA%\ms-playwright`、ユーザー許可の上でClaudeが実行）。このPCにはPowerShell 7（pwsh）が無いため、`playwright.ps1`はWindows PowerShellで`powershell -ExecutionPolicy Bypass -File tests/LearnPlaywright.Tests/bin/Debug/net10.0/playwright.ps1 install chromium`として実行する（Bypassは当該プロセスのみ）。
+- 標準コマンド（`.claude/settings.json`の`permissions.allow`に登録済み）: ビルド`dotnet build`、全テスト`dotnet test`、サンプルサイト起動`dotnet run --project src/LearnPlaywright.Server`（http://localhost:5080/ ）。E2Eテストはサーバーを自動起動するため、手動起動したサーバーは停止してから`dotnet test`を実行する（ポート使用中を検出するとE2Eは失敗する）。
 
 ## トレーサビリティマトリックス
 
@@ -95,7 +95,7 @@ Playwrightを用いたブラウザアプリのテスト自動化を学ぶため�
 テスト仕様書（`docs/04_test/`）のテストケース一覧には、テストID・対応要件ID・対応関数IDに加えて**テストレベル**（単体/結合/統合）と**由来**（仕様/設計ベース・コードベース・レビュー指摘ベース）を列として持たせること。由来が「仕様/設計ベース」のテストのみトレーサビリティマトリックスの記載対象とする。
 
 - **Playwright UIテストの入力値パラメータ化**: テキストボックス・スライダー・プルダウン・ラジオボタンの組み合わせを網羅的に試すため、NUnitの`TestCaseSource`等を使い、入力値と期待値の組をデータ構造（レコード/クラス）として一元管理する。個々のテストメソッドに値をハードコードしない。詳細な設計は関数設計・テスト仕様書工程で確定する。
-- リグレッション方針・代表ケースのマーキング方法・TDD方針は、テスト工程着手時に確定しここに追記する（既定はフルリグレッション、設計書ベースの後付けテスト）。
+- リグレッション方針: フルリグレッション（`dotnet test`で全件、所要1分未満）。TDD不採用（設計書ベースの後付けテスト）。代表ケースのマーキングは不要。詳細は`docs/04_test/test_spec.md`。
 
 ## 変更操作の承認について
 
@@ -143,7 +143,7 @@ Playwrightを用いたブラウザアプリのテスト自動化を学ぶため�
 - プロジェクトフォルダ外のファイルを書き換える場合
 - 本章より下で、特定の実行操作について承認を要する旨が明記されている場合
 
-実装工程着手時に、実際に使用する実行コマンド（例: `dotnet build`、`dotnet run --project src/*`、`dotnet test tests/*` など）を`.claude/settings.json`の`permissions.allow`に追加し、ここにも明記する。
+実行コマンドは「実装環境」章の標準コマンド（`dotnet build`・`dotnet test`・`dotnet run --project src/LearnPlaywright.Server`）を`.claude/settings.json`の`permissions.allow`に登録済み。
 
 ### テスト実行コマンドの標準化（承認プロンプト削減）
 
@@ -185,6 +185,7 @@ docs/
   review_log.md            レビュー往復の記録（自律ループモード）
   handoff.md               セッション間の申し送り事項（現在アクティブな分のみ）
   handoff_archive.md       （肥大化時のみ）handoff.mdから退避した解決済みの申し送り履歴
-src/                      実装コード（フロントエンド: HTML/CSS/JS、バックエンド: C#/.NET 10）
-tests/                    Playwright for .NET によるテストコード（C#/NUnit）
+src/                      実装コード（`LearnPlaywright.Server`: ASP.NET Core＋wwwroot〈HTML/CSS/JS〉、`LearnPlaywright.Logic`: ロジック層）
+tests/                    テストコード（`LearnPlaywright.Tests`: Playwright E2E＋COMP-04ヘルパー、`LearnPlaywright.UnitTests`: 単体テスト）
+docs/tutorial/            学習教材（COMP-06、0〜9章）
 ```

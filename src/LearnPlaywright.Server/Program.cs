@@ -15,8 +15,9 @@ if (string.IsNullOrEmpty(builder.Configuration["urls"]))
 var app = builder.Build();
 
 // 保存先ディレクトリ（CON-07: .gitignore で除外済み）。設定キー DataDirectory で上書きできる（E2Eテストで一時ディレクトリを指定）。
+// 相対パスはContentRoot基準で解決する。.gitignore対象外の場所を指定すると保存データがGit管理に入り得るため注意。
 string dataDirectory = Path.GetFullPath(
-    app.Configuration["DataDirectory"] ?? Path.Combine(app.Environment.ContentRootPath, "App_Data"));
+    app.Configuration["DataDirectory"] ?? "App_Data", app.Environment.ContentRootPath);
 
 app.UseDefaultFiles();
 app.UseStaticFiles();

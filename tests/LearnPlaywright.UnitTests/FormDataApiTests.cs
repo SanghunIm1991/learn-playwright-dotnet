@@ -101,6 +101,27 @@ public class FormDataApiTests
         });
     }
 
+    // UT-02-09: GETでもCookie未設定なら新規発行、Cookie付与失敗は500、Found:trueでData:nullの契約違反は500
+    [Test]
+    public void Handlers_CookieIssuanceAndContractViolations()
+    {
+        var recorder = new CookieRecorder();
+        var getNew = FormDataApi.HandleGetFormData(null, new GetDeps(_ => new LoadResult(false, null), recorder.Set, () => "g-id"));
+        Action<string, string, CookieWriteOptions> failing = (_, _, _) => throw new InvalidOperationException();
+        var postCookieError = FormDataApi.HandlePostFormData(null, ValidBody, new PostDeps((_, _) => new SaveResult(true), failing));
+        var getCookieError = FormDataApi.HandleGetFormData(null, new GetDeps(_ => new LoadResult(false, null), failing));
+        var contractViolation = FormDataApi.HandleGetFormData("u", new GetDeps(_ => new LoadResult(true, null)));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(getNew.StatusCode, Is.EqualTo(404));
+            Assert.That(recorder.Calls.Single().Value, Is.EqualTo("g-id"));
+            Assert.That(postCookieError.StatusCode, Is.EqualTo(500));
+            Assert.That(getCookieError.StatusCode, Is.EqualTo(500));
+            Assert.That(contractViolation.StatusCode, Is.EqualTo(500));
+        });
+    }
+
     // UT-02-06: 委譲先が例外を投げてもロックは解放される（同一userIdで続けて処理できる）
     [Test]
     public void Handlers_ReleaseLockEvenWhenDelegateThrows()

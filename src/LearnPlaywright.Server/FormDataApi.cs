@@ -150,7 +150,8 @@ public static class FormDataApi
                 ReleaseUserLock(resolved.UserId);                                            // 手順5
             }
 
-            if (!result.Found || result.Data is null) return new GetResult(StatusCodes.Status404NotFound, null); // 手順7
+            if (!result.Found) return new GetResult(StatusCodes.Status404NotFound, null);                    // 手順7
+            if (result.Data is null) return new GetResult(StatusCodes.Status500InternalServerError, null);   // 契約違反（Found:trueでData:null）
             return new GetResult(StatusCodes.Status200OK, SerializeFormDataToJson(result.Data));              // 手順8
         }
         catch (Exception)
@@ -171,8 +172,18 @@ public static class FormDataApi
 
         app.MapPost(EndpointPath, async (HttpContext context) =>
         {
-            using var reader = new StreamReader(context.Request.Body);
-            string body = await reader.ReadToEndAsync();
+            // application/json 以外は拒否する（他サイトからのCORSプリフライト不要な「単純リクエスト」によるPOSTを防ぐ）
+            if (!context.Request.HasJsonContentType())
+            {
+                context.Response.StatusCode = StatusCodes.Status415UnsupportedMediaType;
+                return;
+            }
+            string? body = await ReadBodyWithLimitAsync(context.Request);
+            if (body is null)
+            {
+                context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                return;
+            }
             var result = HandlePostFormData(
                 context.Request.Cookies[UserIdCookieName],
                 body,
@@ -192,6 +203,23 @@ public static class FormDataApi
                 await context.Response.WriteAsync(result.BodyJson);
             }
         });
+    }
+
+    // POSTボディの上限（文字数）。検証上限（text 1000文字等）に対して十分大きく、巨大リクエストは拒否できる値
+    public const int MaxRequestBodyChars = 64 * 1024;
+
+    // 上限を超える場合はnullを返す
+    private static async Task<string?> ReadBodyWithLimitAsync(HttpRequest request)
+    {
+        if (request.ContentLength is > MaxRequestBodyChars * 4L) return null; // UTF-8で1文字最大4バイト
+        using var reader = new StreamReader(request.Body);
+        var buffer = new char[MaxRequestBodyChars + 1];
+        int total = 0, read;
+        while (total < buffer.Length && (read = await reader.ReadAsync(buffer.AsMemory(total, buffer.Length - total))) > 0)
+        {
+            total += read;
+        }
+        return total > MaxRequestBodyChars ? null : new string(buffer, 0, total);
     }
 
     private static readonly JsonSerializerOptions ApiJsonOptions = new()

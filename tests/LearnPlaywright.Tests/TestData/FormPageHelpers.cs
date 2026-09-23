@@ -65,7 +65,9 @@ public static class FormPageHelpers
     {
         ArgumentNullException.ThrowIfNull(page);
         if (value is null) return;
-        await page.Locator($"[data-testid='{FormTestIds.RadioOption}'][value='{value}']").CheckAsync();
+        // 値に ' や \ が含まれてもセレクタが壊れないようエスケープする
+        string escaped = value.Replace("\\", "\\\\").Replace("'", "\\'");
+        await page.Locator($"[data-testid='{FormTestIds.RadioOption}'][value='{escaped}']").CheckAsync();
     }
 
     // FUNC-37
