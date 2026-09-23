@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-04: テストデータ構造・ヘルパー関数） |
-| 版数 | v1.1 |
+| 版数 | v1.2 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント） |
 
@@ -15,6 +15,7 @@
 |---|---|---|---|
 | v1.0 | 2026-09-23 | 初版作成 | ClaudeCode |
 | v1.1 | 2026-09-23 | 論理レビュー指摘4件を反映。(1)FUNC-30〜42の対応要件欄から誤って付与されていたREQ-09を削除（COMP-04の対応要件はREQ-08/NFR-07/CON-04,06,07のみでREQ-09はCOMP-05専属のため）、3節のFormValuesTestCase docstringのREQ-09言及も削除。(2)2.1節が記録を自称していたが未記録だった独自判断2件（テストケースの命名・識別方法、排他制御の要否）をdocs/qa_log.mdに追記。(3)3節に`FormValuesTestCases`静的クラス（`GetCases`シグネチャ）のコード例を追加。(4)6節自己チェック見出しにCON-07を追加（本文には既に記載済みだったが見出しから欠落していた） | ClaudeCode |
+| v1.2 | 2026-09-23 | 可読性向上（内容変更なし）。論理面（データ構造・関数名・引数・戻り値・副作用・例外仕様・対応ID・数値・判断内容）は一切変更していない。4節の16関数一覧を単一の長大表から、種別ごとの4グループ（データ生成3件／個別コントロール操作10件／複合ヘルパー2件／メッセージ取得1件）に分割した小見出し＋小テーブル構成に再編し、一覧性を高めた | ClaudeCode |
 
 ## 2. 対応コンポーネント
 
@@ -150,11 +151,22 @@ public static class FormValuesTestCases
 
 ## 4. 関数一覧
 
+COMP-04が持つ16関数を、種別ごとに4グループへ分けて示す。グループ構成は次のとおり: データ生成3件（FUNC-27〜29）／Playwright操作・個別コントロール用DOM読み取り・書き込み10件（FUNC-30〜39、送信・読み込みボタンのクリックを含む）／複合ヘルパー2件（FUNC-40・41）／メッセージ読み取り1件（FUNC-42）。
+
+#### グループ1: データ生成（3件）
+
 | ID | 関数名 | 種別 | 責務（要約） | 対応要件 |
 |---|---|---|---|---|
 | FUNC-27 | `FormValuesTestCase.RoundTrip` | データ生成（ロジック） | 送信成功・入力値どおりの復元を期待するテストケースを生成する | REQ-08, NFR-07 |
 | FUNC-28 | `FormValuesTestCase.ExpectedRejection` | データ生成（ロジック） | 送信拒否（検証エラー）を期待するテストケースを生成する | REQ-08, NFR-07 |
 | FUNC-29 | `FormValuesTestCases.GetCases` | データ生成（TestCaseSource提供） | 代表値・境界値を網羅したテストケース列挙を返す | REQ-08, NFR-07 |
+
+FUNC-27〜28はデータ構造（3節）に内包されるため、以降の詳細節では独立節を設けず3節のコード内コメントを一次情報源とする。
+
+#### グループ2: Playwright操作・個別コントロールのDOM読み取り／書き込み・クリック（10件）
+
+| ID | 関数名 | 種別 | 責務（要約） | 対応要件 |
+|---|---|---|---|---|
 | FUNC-30 | `SetTextBoxValueAsync` | Playwright操作（DOM書き込み） | テキストボックスへ値を設定する | REQ-08 |
 | FUNC-31 | `GetTextBoxValueAsync` | Playwright操作（DOM読み取り） | テキストボックスの現在値を取得する | REQ-08 |
 | FUNC-32 | `SetSliderValueAsync` | Playwright操作（DOM書き込み） | スライダーへ値を設定する | REQ-08 |
@@ -165,11 +177,19 @@ public static class FormValuesTestCases
 | FUNC-37 | `GetRadioValueAsync` | Playwright操作（DOM読み取り） | 現在選択中のラジオボタンの値を取得する | REQ-08 |
 | FUNC-38 | `ClickSubmitButtonAsync` | Playwright操作（クリック） | 送信ボタンをクリックする | REQ-08 |
 | FUNC-39 | `ClickLoadButtonAsync` | Playwright操作（クリック） | 読み込みボタンをクリックする | REQ-08 |
+
+#### グループ3: Playwright操作・複合ヘルパー（2件）
+
+| ID | 関数名 | 種別 | 責務（要約） | 対応要件 |
+|---|---|---|---|---|
 | FUNC-40 | `SetFormValuesAsync` | Playwright操作（複合・DOM書き込み） | `FormValues`の全項目をUIへ一括反映する | REQ-08, NFR-07 |
 | FUNC-41 | `GetFormValuesAsync` | Playwright操作（複合・DOM読み取り） | UIの全項目の現在値を`FormValues`として一括取得する | REQ-08, NFR-07 |
-| FUNC-42 | `GetMessageAsync` | Playwright操作（DOM読み取り） | メッセージ表示領域のテキスト・種別を取得する | REQ-08 |
 
-種別の内訳: データ生成3件（FUNC-27〜29）、Playwright操作の個別コントロール用DOM読み取り/書き込み10件（FUNC-30〜39）、複合ヘルパー2件（FUNC-40・41）、メッセージ読み取り1件（FUNC-42）。FUNC-27〜28はデータ構造（3節）に内包されるため、以降の詳細節では独立節を設けず3節のコード内コメントを一次情報源とする。
+#### グループ4: Playwright操作・メッセージ取得（1件）
+
+| ID | 関数名 | 種別 | 責務（要約） | 対応要件 |
+|---|---|---|---|---|
+| FUNC-42 | `GetMessageAsync` | Playwright操作（DOM読み取り） | メッセージ表示領域のテキスト・種別を取得する | REQ-08 |
 
 以降、FUNC-29〜42の詳細を記載する。
 
