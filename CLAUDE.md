@@ -37,7 +37,7 @@ Playwrightを用いたブラウザアプリのテスト自動化を学ぶため�
 - [x] 関数設計（COMP-01〜06完了。COMP-06の可読性向上フェーズはユーザー指示〈レビュー1回制限〉により保留、`docs/review_log.md`参照）
 - [x] 実装（2026-09-23、`src/`・`tests/`・`docs/tutorial/`。実装レビュー1回、指摘12件対応済み）
 - [x] テスト（2026-09-23、自動テスト81件全件成功。ユーザー確認・公開工程への移行承認済み）
-- [ ] 公開（GitHubへのソースコード公開、Public）— **保留中**: コミット履歴のcommitterに個人メールアドレスがあるため。リポジトリ名`learn-playwright-dotnet`・MITライセンスは決定済み（`docs/05_publication/publication_manual.md`参照）
+- [ ] 公開（GitHubへのソースコード公開、Public）— 履歴修正済み、GitHubリポジトリ`learn-playwright-dotnet`作成済み、**push承認待ち**（`docs/05_publication/publication_manual.md`参照）
 
 ## 確定した仕様
 

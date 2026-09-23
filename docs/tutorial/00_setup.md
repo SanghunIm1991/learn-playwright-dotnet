@@ -121,15 +121,16 @@ Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration:
 GitHub のリポジトリページから、次のどちらかの方法で取得します（置き場所は学習用プロジェクトとは別のフォルダにします）。
 
 - Git を使う場合: リポジトリページの「Code」ボタンに表示されるURLを使って `git clone <リポジトリのURL>` を実行する
-- Git を使わない場合: 「Code」→「Download ZIP」でダウンロードし、任意のフォルダに展開する
+- Git を使わない場合: 「Code」→「Download ZIP」でダウンロードし、任意のフォルダに展開する（展開したフォルダ名は `learn-playwright-dotnet-main` のように、末尾にブランチ名が付きます）
 
 以降、**リポジトリのルートフォルダ**（`global.json` や `README.md` があるフォルダ）で作業します。
 
 ### 5-2. ビルドする（必要なパッケージが自動でダウンロードされる）
 
 ```powershell
-# リポジトリのルートフォルダへ移動する（パスは自分の置き場所に合わせる）
-cd C:\work\LearnPlaywright
+# リポジトリのルートフォルダへ移動する（パスは自分の置き場所に合わせる。
+# git clone した場合のフォルダ名は learn-playwright-dotnet、ZIPの場合は learn-playwright-dotnet-main）
+cd C:\work\learn-playwright-dotnet
 
 # ソリューション全体をビルドする。
 # 初回は NuGet パッケージ（NUnit、Microsoft.Playwright.NUnit など）が

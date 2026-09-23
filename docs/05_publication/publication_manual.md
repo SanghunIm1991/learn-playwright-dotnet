@@ -20,17 +20,11 @@
 | ライセンス | MIT（`LICENSE`、著作権者表記は個人名を避け「learn-playwright-dotnet contributors」） |
 | push承認 | 都度確認 |
 
-## 3. 現在の状態: 公開保留中・履歴修正済み（2026-09-23）
+## 3. 経緯と現在の状態
 
-2026-09-23、案Cにより過去の履歴を修正済み（全コミットのauthor・committerをユーザーのnoreplyアドレスに変更、PC利用内容の旧記述を全履歴から除去。詳細は`docs/qa_log.md`）。公開を再開するときは、4章のpush前スキャンを最新のコミットまで改めて実施してからpushの承認を得る。以下は保留を決めた時点の記録。
-
-push前スキャンで、既存の全コミットのcommitterにユーザー個人のメールアドレスが記録されていることを検出した（authorは規約どおり`ClaudeCode <noreply@anthropic.com>`）。履歴の書き換えは規約で禁止されているため、ユーザー判断により公開を保留した。再開時は次のいずれかをユーザーと決める。
-
-- 案C（2026-09-23追加）: 初回push前に、`git-history-rewrite`スキルの手順（フルバックアップ→ユーザーが`git filter-repo`で過去のauthor・committerをユーザーのnoreplyアドレスに修正し、旧記述〈PC利用内容〉やコミットメッセージの問題を除去→Claudeが検証）で履歴を修正してから公開する。未push のためGitHub側のキャッシュ等の問題は生じない。
-- 案A: 既存の履歴は書き換えずローカルに残し、履歴を持たない公開用ブランチ（orphan）に現在のファイル一式を1コミットで作ってpushする。そのコミットのcommitterは個人情報を含まないID（GitHubのnoreplyアドレス等）とする。公開される履歴から個人情報を除くという目的は禁止操作（履歴書き換え）と同じであるため、実施前にその旨を明示して承認を得る。なお、committerを変更することは`git-conventions`スキルの「committerは変更しない（グローバルGit設定のまま）」という規定の例外となるため、この点も承認対象に含める。
-- 案B: メールアドレスが公開履歴に残ることを許容して、既存履歴のままpushする。
-- いずれの場合も、現行のGit規約（committerはグローバル設定のまま）では今後のコミットにも個人メールがcommitterとして記録され続ける。公開前に、このリポジトリのローカル設定（`git config user.email`）をGitHubのnoreplyアドレスにするか、規約自体を見直すかをユーザーが判断する（設定変更はユーザー承認のうえで行う）。
-- 再開時は、push前スキャン（4章）を最新のコミットまで改めて実施する（2026-09-23のスキャンは8cb6f8aまで）。
+- 2026-09-23: 最初のpush前スキャンで、旧Git規約によりコミットのcommitterに個人のメールアドレスが記録されていたことが分かり、公開をいったん保留した。
+- 同日: Git規約を改訂し（author・committerはユーザー本人のGitHub noreplyアドレス、Claudeの関与は`[claude]`接頭辞と`Co-Authored-By`で示す）、`git-history-rewrite`スキルの手順（フルバックアップ→ユーザーが`git filter-repo`で書き換え→Claudeが検証）で初回push前に過去の履歴を修正した。現在の履歴には個人のメールアドレスは含まれない（詳細は`docs/qa_log.md`、手法の解説は`docs/git_filter_repo_guide/README.md`）。
+- 同日: GitHubに空のPublicリポジトリ`learn-playwright-dotnet`を作成（`gh repo create`、README・LICENSEの自動生成なし）し、ブランチ名を`main`に変更。公開前の最終レビュー（サブエージェント、静的確認）で重大な指摘なし。
 
 ## 4. push前スキャン手順（毎回・省略不可）
 
@@ -39,7 +33,7 @@ push前スキャンで、既存の全コミットのcommitterにユーザー個�
 3. `.gitignore`対象（`bin/`、`obj/`、`App_Data/`等）が追跡されていないことを`git status --ignored`で確認する。
 4. 結果を`docs/qa_log.md`の「Pushスキャン記録」に追記し、ユーザーに提示してからpushの承認を得る。
 
-## 5. 公開手順（保留解除後）
+## 5. 公開手順
 
 1. GitHub上にリポジトリ`learn-playwright-dotnet`（Public、README・LICENSEの自動生成なし）を作成する。作成はユーザーがWeb画面で行うか、承認のうえ`gh repo create`で行う。
 2. 3章で決めた方式で公開用の履歴を用意する。
