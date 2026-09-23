@@ -5,7 +5,7 @@
 | 項目 | 内容 |
 |---|---|
 | 文書名 | LearnPlaywright 関数設計書（COMP-05: Playwrightテストシナリオ） |
-| 版数 | v1.0 |
+| 版数 | v1.1 |
 | 作成日 | 2026-09-23 |
 | 作成者 | ClaudeCode（関数設計工程サブエージェント・論理設計担当） |
 
@@ -14,6 +14,7 @@
 | 版数 | 日付 | 変更内容 | 変更者 |
 |---|---|---|---|
 | v1.0 | 2026-09-23 | 初版作成（論理設計。可読性向上は別工程で実施） | ClaudeCode |
+| v1.1 | 2026-09-23 | 論理レビュー1回目の指摘3件に対応。(1)FUNC-47の責務記述をREQ-09前半の文言流用から実態（メッセージ種別による間接検証）に修正し、値レベルの一致検証がFUNC-48との組み合わせで初めて充足される旨を4節・6節に明記、(2)FUNC-43の責務・2.1節に、サーバープロセスを`ServerConfig.BaseUrl`のポートで実際に待ち受けさせるための起動時指定方法（`--urls`引数またはASPNETCORE_URLS環境変数）を実装工程で確定・反映する旨を追記、(3)FUNC-47・FUNC-48の対応要件欄からCON-06・CON-07を削除し、COMP-02/COMP-04同様6節自己チェックでのみ横断的要件として言及する形に統一 | ClaudeCode |
 
 ## 2. 対応コンポーネント
 
@@ -30,7 +31,7 @@ COMP-05はCOMP-04（`docs/03_function_design/COMP-04.md` v1.2）が提供する�
 | 事項 | 結論 |
 |---|---|
 | バックエンドサーバー（COMP-02）プロセスの起動主体 | COMP-05が自身のテストフィクスチャの`[OneTimeSetUp]`（FUNC-43）でサーバープロセスを起動し、`[OneTimeTearDown]`（FUNC-44）で終了させる設計とする。CLAUDE.mdの「テスト実行コマンドの標準化」章が`dotnet test`の標準形のみでのテスト実行を求めており、テスト実行者が別途手動でサーバーを起動しておく運用は前提にできないため。 |
-| サーバーのベースURL・待受ポート | プレースホルダとして`http://localhost:5080`を暫定値とする（4節`ServerConfig.BaseUrl`）。COMP-02の関数設計書はNFR-02（localhost限定）をKestrel既定設定で充足するとのみ定め、具体的なポート番号までは確定していない。実装工程でCOMP-02側の`launchSettings.json`等の実際の待受ポートが確定次第、本値を更新することを申し送る。 |
+| サーバーのベースURL・待受ポート | プレースホルダとして`http://localhost:5080`を暫定値とする（4節`ServerConfig.BaseUrl`）。COMP-02の関数設計書はNFR-02（localhost限定）をKestrel既定設定で充足するとのみ定め、具体的なポート番号までは確定していない。実装工程でCOMP-02側の`launchSettings.json`等の実際の待受ポートが確定次第、本値を更新することを申し送る。あわせて、FUNC-43がサーバープロセスを起動する際に、このポートで実際に待ち受けさせるための起動時指定方法（`dotnet run --urls=<ServerConfig.BaseUrl>`のような起動引数、またはプロセス起動時の環境変数`ASPNETCORE_URLS`設定等）をCOMP-02側の起動構成と合わせて実装工程で確定・反映することも申し送る（4節FUNC-43参照）。 |
 | サーバー起動完了の待ち受け方法 | COMP-02が新設のヘルスチェック専用エンドポイントを持たない前提のため、既存の`GET /api/form-data`エンドポイントへ`HttpClient`でポーリングし、（Cookie未設定でも200/404いずれかの正常なHTTPレスポンスが返れば）起動完了とみなす設計とする（4節FUNC-43）。新規エンドポイントをCOMP-02へ追加要求しないことで、確定済みのCOMP-02契約に変更を生じさせない。 |
 | ブラウザの種類・ヘッドレス設定の既定値 | Chromiumを既定ブラウザとし、既定で`Headless: true`とする（自動実行時の安定性・CON-01のWindows 11ローカル実行前提を優先）。デバッグ時にヘッドフルで確認したい場合は、実装工程で環境変数等による切替手段を設けることを申し送る（本設計では切替の要否・方式までは規定しない）。 |
 | テスト間のブラウザコンテキスト分離方式 | 各テストの`[SetUp]`（FUNC-45）で共有`IBrowser`から新規`IBrowserContext`を生成し、Cookie等の状態を一切共有しない設計とする。これによりCOMP-04関数設計書2.1節が前提とする「各テストは独立したブラウザコンテキスト・独立したユーザー識別Cookieを用いる」という要求をCOMP-05側の責務として満たす。 |
@@ -63,8 +64,8 @@ COMP-05が持つ6関数を、種別ごとに3グループへ分けて示す。�
 
 | ID | 関数名 | 種別 | 責務（要約） | 対応要件 |
 |---|---|---|---|---|
-| FUNC-47 | `SubmitAndVerifySavedResult` | シナリオテスト | 「UIへの入力操作→送信ボタン押下→サーバー保存内容の検証」（REQ-09前半）を1件のテストケースについて実行する | REQ-08, REQ-09, CON-01, CON-04, CON-06, CON-07 |
-| FUNC-48 | `LoadAndVerifyRestoredValues` | シナリオテスト | 「読み込みボタン押下→UI復元後の各コントロール表示内容の検証」（REQ-09後半）を1件のテストケースについて実行する | REQ-08, REQ-09, CON-01, CON-04, CON-06, CON-07 |
+| FUNC-47 | `SubmitAndVerifySavedResult` | シナリオテスト | 「UIへの入力操作→送信ボタン押下→送信結果（受理/拒否）のメッセージ種別による間接検証」（REQ-09前半）を1件のテストケースについて実行する | REQ-08, REQ-09, CON-01, CON-04 |
+| FUNC-48 | `LoadAndVerifyRestoredValues` | シナリオテスト | 「読み込みボタン押下→UI復元後の各コントロール表示内容の検証」（REQ-09後半）を1件のテストケースについて実行する | REQ-08, REQ-09, CON-01, CON-04 |
 
 以降、FUNC-43〜48の詳細を記載する。共通の前提として、以下の型・定数・フィールドを用いる。
 
@@ -100,7 +101,7 @@ public sealed class FormDataScenarioTests
 
 ### FUNC-43: OneTimeSetUpAsync
 
-- **責務**: `[OneTimeSetUp]`属性を持ち、本テストフィクスチャ内の全テスト実行前に1回だけ呼び出される。(1) COMP-02のバックエンドサーバーを子プロセスとして起動し、`ServerConfig.BaseUrl`へのHTTPリクエストが正常に応答するまでポーリングして起動完了を待つ、(2) Playwrightドライバ（`Microsoft.Playwright.Playwright.CreateAsync()`）を初期化し、Chromiumブラウザ（既定`Headless: true`）を起動して`_browser`フィールドへ保持する。
+- **責務**: `[OneTimeSetUp]`属性を持ち、本テストフィクスチャ内の全テスト実行前に1回だけ呼び出される。(1) COMP-02のバックエンドサーバーを子プロセスとして起動する際、`ServerConfig.BaseUrl`で指定したポート（`http://localhost:5080`、プレースホルダ）で実際に待ち受けさせるよう、プロセス起動時に明示的に指定する（例: `dotnet run --urls=http://localhost:5080`のような起動引数、または環境変数`ASPNETCORE_URLS`をプロセス起動時に設定する。具体的な指定方法はCOMP-02側の起動構成と合わせて実装工程で確定・反映する。2.1節参照）。その上で`ServerConfig.BaseUrl`へのHTTPリクエストが正常に応答するまでポーリングして起動完了を待つ、(2) Playwrightドライバ（`Microsoft.Playwright.Playwright.CreateAsync()`）を初期化し、Chromiumブラウザ（既定`Headless: true`）を起動して`_browser`フィールドへ保持する。
 - **引数**: なし（NUnitの`[OneTimeSetUp]`属性を持つパラメータなしメソッドという規約に従う）
 - **戻り値**: `Task`（意味的な戻り値は持たない。正常終了＝フィクスチャ配下の全テストの実行が開始可能な状態になったことを表す）
 - **副作用**: あり — OSプロセス起動（COMP-02サーバー）、ブラウザプロセス起動、インスタンスフィールド（`_serverProcess` / `_playwright` / `_browser`）への書き込み
@@ -141,7 +142,7 @@ public sealed class FormDataScenarioTests
 
 ### FUNC-47: SubmitAndVerifySavedResult
 
-- **責務**: REQ-09前半のシナリオ「UIへの入力操作→送信ボタン押下→サーバー保存内容の検証」を、`[TestCaseSource]`から供給される1件の`FormValuesTestCase`について実行する。COMP-04のFUNC-40（`SetFormValuesAsync`）・FUNC-38（`ClickSubmitButtonAsync`）・FUNC-42（`GetMessageAsync`）のみをこの順に呼び出すオーケストレーションに徹し、DOM操作の詳細や入力値・期待値のハードコードを一切含まない。
+- **責務**: REQ-09前半のシナリオ「UIへの入力操作→送信ボタン押下→送信結果（受理/拒否）のメッセージ種別による間接検証」を、`[TestCaseSource]`から供給される1件の`FormValuesTestCase`について実行する。COMP-04のFUNC-40（`SetFormValuesAsync`）・FUNC-38（`ClickSubmitButtonAsync`）・FUNC-42（`GetMessageAsync`）のみをこの順に呼び出すオーケストレーションに徹し、DOM操作の詳細や入力値・期待値のハードコードを一切含まない。なお、本関数が検証するのはUIに表示されるメッセージ種別（success/error）のみであり、サーバーに保存されたJSONの値そのものが入力値と一致するかという値レベルの一致検証は行わない。値レベルの一致検証はFUNC-48（シナリオ2、読込→復元検証）が担う。したがってREQ-09前半が定める「保存内容の検証」は、本関数単体では内容レベルでは完結せず、FUNC-48と組み合わせて初めて充足される（2.1節・6節参照）。
 - **メソッド属性**: `[Test]`, `[TestCaseSource(typeof(FormValuesTestCases), nameof(FormValuesTestCases.GetCases))]`
 - **引数**: `testCase: FormValuesTestCase` — COMP-04 FUNC-29が供給する1件のテストケース（`CaseId`がNUnit上のテストケース表示名として使われる。COMP-04 2.1節）
 - **戻り値**: `Task`（3節の注記のとおり、意味的な戻り値ではない。検証結果はNUnitアサーションの成否で表現される）
@@ -155,7 +156,7 @@ public sealed class FormDataScenarioTests
 - **例外/エラー時の挙動**:
   - 手順1〜3でPlaywrightの`TimeoutException`等が発生した場合: catchせずそのまま伝播させ、当該テストケースをエラー（Error。アサーション失敗によるFailedとは区別される）として記録する
   - 手順4・5のアサーションが不一致の場合: NUnitの`AssertionException`が内部でcatchされ、当該テストケースが失敗（Failed）として記録される
-- **対応要件**: REQ-08（`TestCaseSource`による適用面）, REQ-09（前半シナリオ）, CON-01, CON-04, CON-06, CON-07（テストケースの入力値・メッセージ文言に秘密情報・個人情報を含めないことは、COMP-04が提供するテストデータに一元化されており、本関数固有の対応事項ではない横断的規約として扱う）
+- **対応要件**: REQ-08（`TestCaseSource`による適用面）, REQ-09（前半シナリオ）, CON-01, CON-04（CON-06・CON-07は個別関数固有の対応事項ではなく横断的規約のため対応要件欄には記載しない。6節自己チェック参照）
 
 ### FUNC-48: LoadAndVerifyRestoredValues
 
@@ -174,7 +175,7 @@ public sealed class FormDataScenarioTests
 - **例外/エラー時の挙動**:
   - 手順1〜4でPlaywrightの`TimeoutException`等が発生した場合: catchせずそのまま伝播させ、当該テストケースをエラーとして記録する
   - 手順5・6のアサーションが不一致の場合: `AssertionException`により当該テストケースが失敗として記録される
-- **対応要件**: REQ-08（`TestCaseSource`による適用面）, REQ-09（後半シナリオ）, CON-01, CON-04, CON-06, CON-07（FUNC-47と同様、横断的規約として扱う）
+- **対応要件**: REQ-08（`TestCaseSource`による適用面）, REQ-09（後半シナリオ）, CON-01, CON-04（CON-06・CON-07は個別関数固有の対応事項ではなく横断的規約のため対応要件欄には記載しない。FUNC-47と同様。6節自己チェック参照）
 
 ## 5. テスト実行時の関数呼び出し関係
 
@@ -254,5 +255,5 @@ flowchart TD
   - CON-01（Windows 11ローカル環境での実行）: FUNC-43がプロセス起動・ポーリングという形でローカル環境前提の起動方式を採用している。クラウド・外部サーバーへの依存はない。
   - CON-04（Playwright for .NET／C#／NUnit）: 全関数がC#・NUnit属性（`[OneTimeSetUp]`/`[OneTimeTearDown]`/`[SetUp]`/`[TearDown]`/`[Test]`/`[TestCaseSource]`）・Playwright for .NETのAPI（`IPlaywright`/`IBrowser`/`IBrowserContext`/`IPage`）で設計されている。
   - CON-06・CON-07（秘密情報・個人情報の非混入）: COMP-05自体は固定文言・秘密情報を持たず、すべての具体値はCOMP-04（ダミー値のみ）に一元化されているため、個別関数固有の対応事項ではなく横断的規約として扱う（COMP-01〜04と同様の整理）。
-- **REQ-09の2つのシナリオが両方カバーされているか**: FUNC-47（`SubmitAndVerifySavedResult`）が「UIへの入力操作→送信ボタン押下→サーバー保存内容の検証」を、FUNC-48（`LoadAndVerifyRestoredValues`）が「読み込みボタン押下→UI復元後の各コントロール表示内容の検証」を、それぞれ独立したテストメソッドとして実装する設計とした（設計方針の指示どおり、1メソッドに両方を詰め込んでいない）。両シナリオとも`FormValuesTestCase`の`ExpectedSubmitSuccess: true`（往復一致）・`false`（検証エラーによる拒否）双方のケースを扱えるようアサーション分岐を設けており、COMP-04 FUNC-29が定義する境界値ケース（`BND-TEXT-OVERLEN`等）にもそのまま適用できる。
+- **REQ-09の2つのシナリオが両方カバーされているか**: FUNC-47（`SubmitAndVerifySavedResult`）が「UIへの入力操作→送信ボタン押下→送信結果（受理/拒否）のメッセージ種別による間接検証」を、FUNC-48（`LoadAndVerifyRestoredValues`）が「読み込みボタン押下→UI復元後の各コントロール表示内容の検証」を、それぞれ独立したテストメソッドとして実装する設計とした（設計方針の指示どおり、1メソッドに両方を詰め込んでいない）。両シナリオとも`FormValuesTestCase`の`ExpectedSubmitSuccess: true`（往復一致）・`false`（検証エラーによる拒否）双方のケースを扱えるようアサーション分岐を設けており、COMP-04 FUNC-29が定義する境界値ケース（`BND-TEXT-OVERLEN`等）にもそのまま適用できる。ただし、FUNC-47単体が検証するのはメッセージ種別（success/error）のみであり、サーバー保存内容の値レベルでの一致検証は行わない。そのため、REQ-09前半が定める「保存内容の検証」はFUNC-47単体では内容レベルでは完結せず、値レベルの一致検証を行うFUNC-48（読込→復元検証。往復一致ケースでは間接的に送信内容と保存内容の一致を裏付ける）と組み合わせて初めて充足される設計である点に留意する。
 - **テスト実行環境の自己完結性**: CLAUDE.mdの「テスト実行コマンドの標準化」章が求める`dotnet test`の標準形のみでの実行を満たすため、バックエンドサーバーの起動・終了までをFUNC-43・FUNC-44としてCOMP-05自身の責務に含めた（2.1節）。これにより、テスト実行者がサーバーを別途手動起動しておく必要がない設計とした。
