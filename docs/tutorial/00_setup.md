@@ -1,6 +1,6 @@
 # 0章 環境構築
 
-この章では、教材を進めるのに必要な環境を整えます。ゴールは「学習用のテストプロジェクトを作り、`dotnet test` で既定のサンプルテストが成功する」ことです。
+この章では、教材を進めるのに必要な環境を整えます。ゴールは「学習用のテストプロジェクトを作り、`dotnet test` で既定のサンプルテストが成功する」ことと、「テスト対象のサンプルアプリをビルド・起動できる」ことです。環境構築の手順はすべて自分の手で実行できるように書いています。
 
 ## この章の前提知識
 
@@ -112,6 +112,84 @@ Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration:
 
 - この教材では、テストの実行には常にこの `dotnet test` の形だけを使います。オプションを付けたり、別の実行方法に切り替えたりはしません。
 
+## 手順5: サンプルアプリ（このリポジトリ）を準備する
+
+2章以降でテストの対象にするサンプルアプリを、自分のPCでビルドして起動できるようにします。
+
+### 5-1. リポジトリを手元に用意する
+
+GitHub のリポジトリページから、次のどちらかの方法で取得します（置き場所は学習用プロジェクトとは別のフォルダにします）。
+
+- Git を使う場合: リポジトリページの「Code」ボタンに表示されるURLを使って `git clone <リポジトリのURL>` を実行する
+- Git を使わない場合: 「Code」→「Download ZIP」でダウンロードし、任意のフォルダに展開する
+
+以降、**リポジトリのルートフォルダ**（`global.json` や `README.md` があるフォルダ）で作業します。
+
+### 5-2. ビルドする（必要なパッケージが自動でダウンロードされる）
+
+```powershell
+# リポジトリのルートフォルダへ移動する（パスは自分の置き場所に合わせる）
+cd C:\work\LearnPlaywright
+
+# ソリューション全体をビルドする。
+# 初回は NuGet パッケージ（NUnit、Microsoft.Playwright.NUnit など）が
+# 公式の配布サイト nuget.org から自動でダウンロードされる（%USERPROFILE%\.nuget\packages に保存）
+dotnet build
+```
+
+出力の最後に `ビルドに成功しました。`（英語環境では `Build succeeded.`）と出ればOKです。
+
+> **初めて `dotnet` を使ったときに表示されるメッセージについて**
+>
+> .NET SDK を初めて使うと、`.NET へようこそ` という案内と一緒に、次のような表示が出ることがあります。
+>
+> - **テレメトリ**: .NET ツールの利用状況データが Microsoft に送信される旨の案内です。送信したくない場合は、環境変数 `DOTNET_CLI_TELEMETRY_OPTOUT` を `1` に設定します（任意）。
+> - **ASP.NET Core HTTPS 開発証明書をインストールしました**: 開発用の証明書が自分のユーザーの証明書ストアに追加されたという案内です。本サンプルは HTTP（`http://localhost`）だけで動くため、この証明書は使いません。案内にある `dotnet dev-certs https --trust`（証明書を信頼済みにする操作）は**実行する必要はありません**。
+
+### 5-3. サンプルアプリを起動して画面を確認する
+
+```powershell
+# サンプルアプリのサーバーを起動する（リポジトリのルートフォルダで実行）
+dotnet run --project src/LearnPlaywright.Server
+```
+
+次のような行が表示されたら起動完了です。
+
+```text
+Now listening on: http://localhost:5080
+Bound address: http://localhost:5080 (loopback: True)
+```
+
+- `Bound address ... (loopback: True)` は、サーバーが自分のPCの中（ループバックアドレス）だけで待ち受けていることの確認表示です。
+- ブラウザで http://localhost:5080/ を開き、「LearnPlaywright サンプルフォーム」の画面が表示されることを確認します。ダミー値を入れて「送信」→ ページを再読み込み →「読み込み」で値が戻ることも試してみてください。
+- 確認できたら、ターミナルで `Ctrl+C` を押してサーバーを止めます（2章で改めて起動します）。
+
+### 5-4.（任意）完成版のテストを実行してみる
+
+リポジトリには完成版のテスト（9章で読み比べるお手本）が入っています。先に動かしておくと、「最終的にこうなる」というゴールが分かります。
+
+```powershell
+# 完成版テストプロジェクト用に Chromium をインストールする（リポジトリのルートフォルダで実行）。
+# 手順3で既に入れていても、Playwright のバージョンが違う場合は別途ダウンロードが必要になる。
+# 同じバージョンなら「既にインストール済み」としてすぐ終わる。
+pwsh tests/LearnPlaywright.Tests/bin/Debug/net10.0/playwright.ps1 install chromium
+#   pwsh が無い場合:
+#   powershell -ExecutionPolicy Bypass -File tests/LearnPlaywright.Tests/bin/Debug/net10.0/playwright.ps1 install chromium
+
+# 単体テストとE2Eテストをすべて実行する（E2Eテストはサーバーを自動で起動・終了する）
+dotnet test
+```
+
+期待される出力の例（件数は教材作成時点のもの）:
+
+```text
+成功!   -失敗:     0、合格:    52、スキップ:     0、合計:    52、期間: 661 ms - LearnPlaywright.UnitTests.dll (net10.0)
+成功!   -失敗:     0、合格:    29、スキップ:     0、合計:    29、期間: 10 s - LearnPlaywright.Tests.dll (net10.0)
+```
+
+- 5-3 で起動したサーバーを止めずに実行すると、ポート 5080 が使用中のため E2E テストが失敗します（`is already in use` と表示されます）。`Ctrl+C` で止めてから実行してください。
+- ブラウザのダウンロード先は `%LOCALAPPDATA%\ms-playwright` です（合計で数百MB程度）。学習を終えて不要になったら、このフォルダを削除すれば取り除けます。
+
 ## うまくいかないとき
 
 | 症状 | 確認すること |
@@ -119,6 +197,10 @@ Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration:
 | `dotnet` が見つからない | .NET SDK が入っていない、またはターミナルを開き直していない |
 | `playwright.ps1` が見つからない | 先に `dotnet build` を実行したか、`bin/Debug/net10.0` のフォルダ名が合っているか |
 | テストが `失敗` になる | 雛形のファイルを編集していないか（この時点では何も書き換えない） |
+| `A compatible .NET SDK was not found` | 手順1で 10.0 系の SDK が入っているか（リポジトリの `global.json` は 10.0.100 以上を要求する） |
+| `dotnet build` でパッケージの復元に失敗する | インターネットに接続できるか（nuget.org からのダウンロードが必要） |
+| `Executable doesn't exist` を含むエラー | そのテストプロジェクトのフォルダで `playwright.ps1 install chromium` を実行したか |
+| E2E テストが `is already in use` で失敗する | 手動で起動したサーバーが残っていないか（`Ctrl+C` で止める） |
 
 ## この章のまとめ
 
@@ -126,5 +208,6 @@ Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration:
 - `dotnet new nunit` と `dotnet add package Microsoft.Playwright.NUnit` で学習用プロジェクトを作った
 - `playwright.ps1 install chromium` でブラウザ本体を入れた
 - `dotnet test` でテストが成功することを確認した
+- サンプルアプリをビルド・起動し、ブラウザで画面を確認した（完成版テストも任意で実行した）
 
 次の1章では、実際にテストを書き始める前に「良いテストの書き方」の考え方を学びます。
