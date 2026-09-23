@@ -32,7 +32,7 @@ Playwrightを用いたブラウザアプリのテスト自動化を学ぶため�
 
 - [x] プロジェクトセットアップ（CLAUDE.md・フォルダ構成・.claude/settings.json）
 - [x] .NET 10 SDK導入（2026-09-23、ユーザーが導入完了。10.0.401）
-- [x] 要件定義（`docs/01_requirements/requirements.md` v1.2、2026-09-23完了。REQ-01〜12/NFR-01〜08/CON-01〜07）
+- [x] 要件定義（`docs/01_requirements/requirements.md` v1.4、2026-09-23完了。REQ-01〜12/NFR-01〜08/CON-01〜07。NFR-02はCOMP-02/05の関数設計工程で判明した解釈曖昧さの解消のためv1.3/v1.4で改訂済み）
 - [x] コンポーネント設計（`docs/02_component_design/component_design.md` v1.3、2026-09-23完了。COMP-01〜06）
 - [ ] 関数設計（COMP-01〜04完了、COMP-05〜06進行中）
 - [ ] 実装
