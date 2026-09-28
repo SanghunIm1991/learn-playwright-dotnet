@@ -108,6 +108,7 @@ public static class FormPageHelpers
         // 値に ' や \ が含まれてもセレクタが壊れないようエスケープする
         // （セレクタの中では ' で値を囲んでいるので、値の中の ' はそのままだと「値の終わり」と誤解される）
         string escaped = value.Replace("\\", "\\\\").Replace("'", "\\'");
+        // $"..." は、{ } の中に書いた値を文字列に埋め込む書き方
         return page.Locator($"[data-testid='{FormTestIds.RadioOption}'][value='{escaped}']");
     }
 ```
@@ -174,7 +175,7 @@ public static class FormPageHelpers
         ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(expectedType);
         // \b は「単語の区切り」。"message--info" が "message--information" のような別名に一致しないようにする。
-        // $@"..." は「{ } で値を埋め込める」＋「\ をそのまま書ける」文字列。
+        // $@"..." は「{ } で値を埋め込める（$）」＋「\ をそのまま書ける（@）」文字列。
         // Regex.Escape は、値に正規表現で特別な意味を持つ記号が含まれていても文字どおりに扱わせるための変換
         await Assertions.Expect(page.GetByTestId(FormTestIds.MessageArea))
             .ToHaveClassAsync(new Regex($@"\bmessage--{Regex.Escape(expectedType)}\b"));
@@ -263,3 +264,27 @@ public class HelperTests
 - 操作する関数（`SetFormValuesAsync` / `ClickSubmitButtonAsync` / `ClickLoadButtonAsync`）と、確かめる関数（`ExpectFormValuesAsync` / `ExpectMessageTypeAsync`）に分けた
 - 確かめる関数は `Assertions.Expect` を使うので、画面に反映されるまで自動で待つ
 - ボタンを押す関数は応答が返るまで待ってから戻るので、直後に次の操作を書いても通信の途中で割り込まない
+
+## この章で出てきた C# の書き方
+
+| 書き方 | 意味 |
+|---|---|
+| `public sealed record FormValues(string Text, ...)` | `record` は値をひとまとめにする型で、全部の値が同じなら「等しい」と比べられる。`sealed` は「この型を元に別の型を作らせない」指定 |
+| `string?` | `?` を付けると「値がない（`null`）こともある」型になる。付けない `string` は null を入れない前提 |
+| `double` | 小数も扱える数値の型 |
+| `public static class FormPageHelpers` / `public static async Task ...` | `static` の関数は、クラスを `new` せずに `FormPageHelpers.SetTextBoxValueAsync(...)` のように呼べる |
+| `private const string ...` / `private static ...` | `private` は「このクラスの中だけで使う」という意味（外からは呼べない） |
+| `private static readonly string[] ...` | `readonly` は最初に入れた後に入れ替えない値。`string[]` は文字列の配列 |
+| `ArgumentNullException.ThrowIfNull(page)` | 引数が `null` なら、その場でエラー（例外）にする |
+| `throw new ArgumentException("...", nameof(value))` | エラー（例外）を起こして処理を止める。`nameof(value)` は変数名 `"value"` を文字列として得る書き方 |
+| `if (!double.IsFinite(value))` | `!` は「〜でない」。「有限の数でなければ」という条件 |
+| `if (value is null) return;` | `is null` は「null であるか」。`return;` でその場で関数を終える |
+| `value.Any(char.IsControl)` | 文字列の中に、条件（ここでは制御文字か）に当てはまる文字が1つでもあるか |
+| `value.Replace("a", "b")` | 文字列の中の `a` を `b` に置き換えた新しい文字列を返す |
+| `"\\"` | 文字列の中で `\` を1文字書くには `\\` と書く（`\` は特別な意味を持つため） |
+| `$"...{値}..."` | `{ }` の中の値を文字列に埋め込む |
+| `$@"..."` | `$`（値の埋め込み）と `@`（`\` を特別扱いしない）を組み合わせた文字列 |
+| `ILocator RadioOption(...)` | 戻り値の型を書いた関数。`ILocator`（ロケーター）を返す |
+| `if (...) { ... } else { ... }` | 条件が成り立つときと成り立たないときで処理を分ける |
+| `using static MyFirstPlaywrightTests.FormPageHelpers;` | クラス名を省いて `SetFormValuesAsync(...)` のように呼べるようにする宣言 |
+| `new FormValues("ダミー太郎", 42, "banana", "green")` | `record` の値を作る。引数は宣言した順（Text, Slider, Select, Radio） |

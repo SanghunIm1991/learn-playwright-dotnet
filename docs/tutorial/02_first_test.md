@@ -70,7 +70,10 @@ namespace MyFirstPlaywrightTests;
 public class FirstTests
 {
     // [Test] を付けたメソッドが1つのテストになる。
-    // Playwright の操作は非同期（完了を待つ必要がある）なので、async Task にする
+    // Playwright の操作は非同期（完了を待つ必要がある）なので、async Task にする。
+    // メソッドの中では、Playwright の操作の前に await を付ける。await は
+    // 「その処理が終わるまで待ってから次の行へ進む」という指定で、付け忘れると
+    // ページが開き終わる前に次の行へ進んでしまい、テストが不安定になる
     [Test]
     public async Task TopPage_HasExpectedTitle()
     {
@@ -140,5 +143,20 @@ dotnet test
 - `Playwright.CreateAsync()` → `LaunchAsync` → `NewPageAsync` → `GotoAsync` の順でページを開く
 - `Assert.That(実際の値, Is.EqualTo(期待値))` で結果を確かめる
 - 2〜7章では、テストの前にサーバーを別ターミナルで手動起動しておく
+
+## この章で出てきた C# の書き方
+
+| 書き方 | 意味 |
+|---|---|
+| `using Microsoft.Playwright;` | ほかの場所で定義された型（`IPage` など）を、短い名前で使えるようにする宣言 |
+| `namespace MyFirstPlaywrightTests;` | このファイルのクラスが属するグループ（名前空間）。学習用プロジェクトでは全ファイルでそろえる |
+| `public class FirstTests { ... }` | クラスの定義。`public` はほかの場所（NUnit など）から使えるという意味 |
+| `async Task` | 途中で「待つ」処理を含むメソッドであることを表す。戻り値がないテストメソッドはこう書く |
+| `await 処理` | その処理が終わるまで待ってから次の行へ進む。`Async` で終わるメソッドには基本的に付ける |
+| `var page = ...` | 右辺から型が分かるときに、型名の代わりに `var` と書ける |
+| `string title` | 文字列を入れる変数の宣言 |
+| `using var ...` / `await using var ...` | 変数を使い終わったら（メソッドの終わりで）自動で後片付けさせる書き方。ブラウザのように非同期で閉じるものは `await using` |
+| `new BrowserTypeLaunchOptions { Headless = true }` | 設定用の値を作り、`{ }` の中で項目に値を入れる書き方 |
+| `// ...` | コメント。行の `//` より後ろはプログラムとして扱われない |
 
 次の3章では、ページの中の入力欄やボタンを探す方法（ロケーター）を学びます。

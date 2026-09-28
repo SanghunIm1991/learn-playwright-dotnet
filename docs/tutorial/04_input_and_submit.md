@@ -49,6 +49,8 @@ await Assertions.Expect(page.GetByTestId("message-area"))
     .ToHaveClassAsync(new Regex("message--success"));
 ```
 
+期待値を `"message--success"` という文字列ではなく `new Regex(...)`（正規表現）で渡しているのには理由があります。メッセージ欄の `class` 属性には、`message message--success` のように**複数のクラス名が空白区切りで入っています**。`ToHaveClassAsync` に文字列を渡すと「class 属性全体がその文字列と同じか」を調べるため、`"message--success"` だけでは一致せず失敗します。正規表現を渡すと「その文字の並びを含むか」を調べるので、他のクラス名が一緒に付いていても確かめられます。
+
 `Assert.That` は「その瞬間の値」を1回だけ比べますが、`Assertions.Expect` は**条件を満たすまで自動で再確認する**検証です。画面が変化するのを待つ場面では、こちらを使います。
 
 ## テストコード
@@ -78,6 +80,8 @@ public class SubmitTests
         await page.GetByTestId("text-input").FillAsync("ダミー太郎");
 
         // スライダーを42にする。
+        // 第1引数の "(el, v) => { ... }" は、ブラウザの中で動く JavaScript の小さな関数
+        // （「引数 el と v を受け取って { } の中を実行する」という書き方）。
         // el はスライダー要素、v は第2引数で渡した "42"。値を入れたあと、
         // 手で動かしたときと同じ input / change イベントを発生させる
         await page.GetByTestId("slider").EvaluateAsync(
@@ -133,5 +137,14 @@ public class SubmitTests
 - `FillAsync` / `SelectOptionAsync` / `CheckAsync` / `ClickAsync` は、操作できる状態になるまで自動で待つ
 - スライダーは `EvaluateAsync` で値を設定し、イベントを発生させる
 - 画面の変化を待って確かめるときは `Assertions.Expect(...).ToHaveClassAsync(...)` を使い、固定時間の待機は書かない
+- class 属性には複数のクラス名が入るので、`ToHaveClassAsync` には正規表現（`new Regex(...)`）を渡して「含むか」を確かめる
+
+## この章で出てきた C# の書き方
+
+| 書き方 | 意味 |
+|---|---|
+| `using System.Text.RegularExpressions;` | 正規表現の型 `Regex` を使えるようにする宣言 |
+| `new Regex("message--success")` | 正規表現（文字の並びのパターン）を作る。ここでは「この文字の並びを含む」という条件として使う |
+| `new string('a', 1001)` | 文字 `'a'` を1001個並べた文字列を作る。`' '` で囲むと1文字（`char`）、`" "` で囲むと文字列（`string`） |
 
 次の5章では、送信したデータを「読み込み」ボタンで取り戻し、画面に正しく復元されるかを確かめます。

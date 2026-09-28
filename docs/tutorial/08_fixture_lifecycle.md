@@ -47,7 +47,7 @@
 dotnet run --project <サーバープロジェクトの場所> --no-build --no-launch-profile --urls http://localhost:5080
 ```
 
-- `--no-build`: テストのたびにサーバーをビルドし直さない（速くするため）。そのため、**事前にリポジトリのルートで `dotnet build src/LearnPlaywright.Server` を実行してビルドを済ませておく**必要があります。
+- `--no-build`: テストのたびにサーバーをビルドし直さない（速くするため）。そのため、**事前にリポジトリのルートで `dotnet build src/LearnPlaywright.Server` を実行してビルドを済ませておく**必要があります。リポジトリを更新した（`git pull` した、ZIP を取り直した）ときも、ビルドし直さないと古いサーバーのまま動くので注意してください。
 - `--no-launch-profile`: 開発用の起動設定ファイル（`launchSettings.json`）を使わず、テスト用の指定だけで起動する。
 - `--urls`: 待ち受けるURLを明示する（ホストは必ず `localhost`）。
 
@@ -151,7 +151,8 @@ public sealed class FixtureTests
     [OneTimeTearDown]
     public async Task OneTimeTearDownAsync()
     {
-        // 後片付けは「1つが失敗しても残りは必ず実行する」よう、それぞれ try で囲む
+        // 後片付けは「1つが失敗しても残りは必ず実行する」よう、それぞれ try で囲む。
+        // TestContext.Progress.WriteLine は、テスト実行中のメッセージをコンソールに表示する NUnit の機能
         try
         {
             if (_browser is not null) await _browser.CloseAsync();
@@ -177,7 +178,9 @@ public sealed class FixtureTests
     [SetUp]
     public async Task SetUpAsync()
     {
-        // 共有ブラウザから、このテスト専用のコンテキスト（Cookie も空）を作る
+        // 共有ブラウザから、このテスト専用のコンテキスト（Cookie も空）を作る。
+        // _browser! の ! は「ここでは null でないと分かっている」とコンパイラに伝える記号
+        // （OneTimeSetUp で必ず作られるため）
         _context = await _browser!.NewContextAsync();
         _page = await _context.NewPageAsync();
         await _page.GotoAsync(ServerConfig.BaseUrl);
@@ -193,7 +196,7 @@ public sealed class FixtureTests
     }
 
     // 7章のテストから「起動・ページ表示」の行が消え、本来の手順だけが残る。
-    // _page! の ! は「ここでは null でないと分かっている」とコンパイラに伝える記号（SetUp で必ず作られるため）
+    // _page! の ! も上と同じ意味（SetUp で必ず作られるため）
     [Test]
     [TestCaseSource(typeof(FormValuesTestCases), nameof(FormValuesTestCases.GetCases))]
     public async Task SubmitAndVerifySavedResult(FormValuesTestCase testCase)
@@ -240,6 +243,14 @@ public sealed class FixtureTests
 
 手動起動のサーバーを止め、サーバーのビルドを済ませたうえで `dotnet test` を実行し、`失敗: 0` を確認してください。サーバーの起動待ちが最初に1回入りますが、ブラウザの起動が1回で済むようになった分、ケース1件あたりの時間は短くなります。
 
+期待される出力の例（2〜7章のクラスに `[Ignore]` を付け、雛形の `Test1` を削除した場合）:
+
+```text
+成功!   -失敗:     0、合格:    12、スキップ:    20、合計:    32、期間: 15 s - MyFirstPlaywrightTests.dll (net10.0)
+```
+
+`FixtureTests` の12件が合格し、`[Ignore]` を付けた2〜7章の20件がスキップとして数えられます。雛形の `Test1` を残している場合は、サーバーを使わないので合格が1件増えます。
+
 ## うまくいかないとき
 
 | 症状 | 確認すること |
@@ -253,3 +264,25 @@ public sealed class FixtureTests
 - `[OneTimeSetUp]` / `[OneTimeTearDown]` でサーバー・ブラウザをクラス全体で1回だけ起動・停止する
 - `[SetUp]` / `[TearDown]` でテストごとに新しいコンテキストを作り、Cookie を持ち越さない
 - 以降、サーバーの手動起動は不要（手動起動のターミナルは止めておく）
+
+## この章で出てきた C# の書き方
+
+| 書き方 | 意味 |
+|---|---|
+| `public static string ServerProjectPath => 式;` | `=>` で書くプロパティ。読むたびに右の式を計算して返す |
+| `A ?? B` | A が `null` なら B を使う（「環境変数がなければ既定のパス」など） |
+| `@"C:\work\..."` | `@` を付けた文字列では `\` を特別扱いしないので、Windows のパスをそのまま書ける |
+| `TimeSpan.FromSeconds(30)` | 「30秒」という時間の長さを表す値 |
+| `private IPlaywright? _playwright;` | クラスの中で共有する変数（フィールド）。`?` で「まだ作っていない間は null」を表す。先頭の `_` はフィールドだと分かりやすくするための慣習 |
+| `_browser!` | `!` は「ここでは null でないと分かっている」とコンパイラに伝える記号 |
+| `Path.Combine(a, b)` | フォルダ名とファイル名などを、区切り文字 `\` を補ってつなぐ |
+| `Guid.NewGuid().ToString("N")` | 他と重ならない、ランダムな文字列を作る（一時フォルダ名に使う） |
+| `foreach (var arg in 一覧) { ... }` | 一覧の要素を1つずつ取り出して繰り返す |
+| `Process.Start(...) ?? throw new ...` | 結果が `null` なら、その場でエラーにする |
+| `イベント += (_, e) => { ... };` | 「〜が起きたら、この処理を実行して」と登録する。`_` は使わない引数 |
+| `lock (_serverLog) { ... }` | 複数の処理が同時に同じ値を読み書きしないよう、順番待ちさせる |
+| `try { ... } catch (Exception ex) { ... }` | `try` の中でエラーが起きたら、`catch` の処理を実行して先へ進む |
+| `_playwright?.Dispose()` | `?.` は「null でなければ呼ぶ（null なら何もしない）」 |
+| `_serverProcess is { HasExited: false }` | 「null でなく、かつ `HasExited` が false」という条件をまとめて書く |
+| `while (条件) { ... }` | 条件が成り立つ間、繰り返す |
+| `(int)response.StatusCode is 200 or 404` | 状態コードを数値に変換し、200 または 404 かを調べる |

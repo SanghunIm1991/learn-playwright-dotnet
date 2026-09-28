@@ -161,3 +161,11 @@ public class LoadTests
 - 成功時にメッセージが空になる処理は、`RunAndWaitForResponseAsync` でクリックとサーバーの応答待ちをまとめて行う
 - 復元された値は `Assertions.Expect(...).ToHaveValueAsync(...)` / `ToBeCheckedAsync()` で、期待する値になるまで待ちながら確かめる
 - `InputValueAsync()` のような「今の値を読む」メソッドは待たないので、確かめる用途には `Assertions.Expect` を使う
+
+## この章で出てきた C# の書き方
+
+| 書き方 | 意味 |
+|---|---|
+| `async () => await 処理` | ラムダ式（その場で書く小さな関数）。引数なしで、中で `await` する処理を「操作」として渡している |
+| `response => 条件` | 引数 `response` を受け取り、`=>` の右の条件の結果（true / false）を返すラムダ式 |
+| `response.Url.EndsWith("/api/form-data")` | 文字列が指定の文字列で終わっているかを調べる（true / false） |

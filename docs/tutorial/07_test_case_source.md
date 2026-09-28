@@ -163,7 +163,7 @@ public class DataDrivenTests
 }
 ```
 
-サーバーを起動した状態で `dotnet test` を実行します。今回は**テストメソッドは1つなのに、ケースの数（12件）だけテストが実行**され、合計の件数が一気に増えることを確認してください。失敗したときは、`BND-TEXT-OVERLEN` のようにケース名で表示されるので、どのパターンで失敗したかがすぐ分かります。
+サーバーを起動した状態で `dotnet test` を実行します。今回は**テストメソッドは1つなのに、ケースの数（12件）だけテストが実行**され、合計の件数が一気に増えることを確認してください。`dotnet test` はプロジェクト内の全テストを実行するので、合計はこれまでの章のテスト（2〜6章で8件）と合わせた20件になります（雛形の `Test1` を残している場合は21件）。失敗したときは、`BND-TEXT-OVERLEN` のようにケース名で表示されるので、どのパターンで失敗したかがすぐ分かります。
 
 ## 手順5: パターンを1件追加してみる
 
@@ -184,3 +184,24 @@ FormValuesTestCase.RoundTrip("REP-SLIDER-MID", "代表値", Base with { Slider =
 - 1件のテストケースを `FormValuesTestCase` で表し、`RoundTrip` / `ExpectedRejection` で作る
 - `FormValuesTestCases.GetCases` にケースを集め、`[TestCaseSource]` でテストメソッドに流し込む
 - パターンの追加はデータを1行足すだけで、テストメソッドの修正は不要
+
+## この章で出てきた C# の書き方
+
+| 書き方 | 意味 |
+|---|---|
+| `FormValues? ExpectedRestored` | 6章と同じく、`?` 付きの型は `null` も入る（ここでは「拒否されるので復元値はない」を `null` で表す） |
+| `public override string ToString() => CaseId;` | 文字列にしたときの表示を決める。`=>` の右に1行で戻り値を書く短い書き方 |
+| `public static FormValuesTestCase RoundTrip(...)` | クラスの値を作って返す `static` 関数（ファクトリメソッド） |
+| `string.IsNullOrEmpty(caseId)` | 文字列が `null` か空文字なら true |
+| `private static readonly FormValues Base = new("ダミー太郎", 42, "banana", "green");` | 左に型を書いているので、右の `new(...)` では型名を省略できる |
+| `IReadOnlyList<string>` | 読み取り専用の、文字列の一覧。`< >` の中に中身の型を書く |
+| `["apple", "banana", "cherry"]` | 一覧（コレクション）をその場で作る書き方 |
+| `Base with { Text = "" }` | `record` をコピーし、指定した項目だけ変えた新しい値を作る |
+| `new List<FormValuesTestCase> { ..., ... }` | 後から追加できる一覧（`List`）を、最初の中身付きで作る |
+| `cases.Add(...)` | 一覧に1件追加する |
+| `for (int i = 0; i < 件数; i++) { ... }` | `i` を 0 から1ずつ増やしながら、件数の分だけ繰り返す |
+| `FormOptionValues.SelectOptions[0]` / `[^1]` | 一覧の先頭（0番目）の要素 / 末尾から1番目（最後）の要素 |
+| `IEnumerable<TestCaseData>` | 「順番に取り出せる値の並び」を表す型。`[TestCaseSource]` はこれを受け取る |
+| `cases.Select(testCase => ...)` | 一覧の1件ずつに `=>` の右の変換をかけた、新しい並びを作る |
+| `条件 ? 値A : 値B` | 条件が true なら値A、false なら値B になる |
+| `typeof(FormValuesTestCases)` / `nameof(FormValuesTestCases.GetCases)` | クラスそのもの / メソッド名の文字列を属性に渡すための書き方 |

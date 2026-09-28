@@ -125,4 +125,13 @@ public class LocatorTests
 - 同じ `data-testid` が複数あるときは `[value='...']` などの条件を足して絞り込む
 - `CountAsync()` で「ちょうど1件見つかる」ことを確かめると、目印の正しさを確認できる
 
+## この章で出てきた C# の書き方
+
+| 書き方 | 意味 |
+|---|---|
+| `public static class FormTestIds { ... }` | `static class` は、値や関数をまとめておくだけのクラス（`new` で作らずに `FormTestIds.TextInput` のように使う）。今は読むだけで、6章で自分でも書く |
+| `public const string TextInput = "text-input";` | `const` は、後から変わらない値（定数）に名前を付ける書き方 |
+| `"[data-testid='text-input']"` | `" "` で囲むと文字列。中の `' '` は文字列の一部（CSSセレクターの書き方）で、C# としての意味はない |
+| `Assert.That(..., Is.True)` | NUnit の検証。`Is.True` は「true であること」 |
+
 次の4章では、見つけた要素に値を入力し、送信ボタンを押してみます。

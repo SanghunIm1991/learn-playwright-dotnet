@@ -59,7 +59,7 @@ page.Locator("input").Nth(0);
 <input type="text" id="text-input" name="text" data-testid="text-input" autocomplete="off">
 ```
 
-完成版テストでは、目印の値（`text-input`、`slider`、`submit-button` など）を `FormTestIds` という定数クラスにまとめて管理しています。具体的な使い方は3章で学びます。
+完成版テストでは、目印の値（`text-input`、`slider`、`submit-button` など）を `FormTestIds` という定数クラスにまとめて管理しています。目印を使って要素を探す方法は3章で、定数クラスへのまとめ方は6章で学びます。
 
 ## 4. テストケースのパラメータ化の考え方
 
