@@ -27,27 +27,38 @@
 | データあり（HTTP 200） | 各部品に値を反映し、**メッセージ欄を空にする** |
 | データなし（HTTP 404） | メッセージ欄に「保存されたデータがありません。」（クラス `message--info`）を表示 |
 
-データがあった場合はメッセージ欄が「空」になるので、4章のように「メッセージ欄のクラスが変わるまで待つ」方法が使えません（押す前も押した後も空のことがあるからです）。
+データがあった場合はメッセージ欄が「空」になるので、4章のように「メッセージ欄のクラスが変わるまで待つ」方法は使えません（押す前も押した後も空のことがあるからです）。代わりに、次の2つの道具を組み合わせます。どちらも Playwright でよく使われる、標準的な書き方です。
 
-そこでサンプルアプリには、テストのための目印がもう1つ用意されています。フォーム要素（`data-testid="form"`）の **`data-request-count` 属性**で、送信・読み込みの処理が終わるたびに 1 ずつ増えます。
+### 道具1: 「期待する値になるまで」待つアサーション
 
-```html
-<form id="user-form" data-testid="form" data-request-count="0" novalidate>
-```
+4章の `ToHaveClassAsync` と同じ仲間に、入力欄の値やラジオボタンの状態を確かめるものがあります。
 
-「押す前の値を覚えておき、値が変わるまで待つ」と書けば、処理が終わったことを確実に待てます。
+| 確かめたいこと | 使うアサーション |
+|---|---|
+| 入力欄・スライダー・プルダウンの値 | `Assertions.Expect(要素).ToHaveValueAsync("期待する値")` |
+| ラジオボタンがオンになっているか | `Assertions.Expect(要素).ToBeCheckedAsync()` |
+
+どちらも**期待する値になるまで繰り返し確認する**ので、読み込み結果が画面に反映されるのを自然に待てます。「読み込みが終わるのを待つ」と「値を確かめる」が1行で済むのがポイントです。
+
+Playwright には `InputValueAsync()`（今の値を文字列で返す）のような「今この瞬間の値を読む」メソッドもありますが、こちらは待ちません。反映される前に読んでしまうことがあるので、値を**確かめる**ときは `Assertions.Expect` の方を使います。
+
+### 道具2: サーバーの応答を待つ `RunAndWaitForResponseAsync`
+
+ボタンを押すと、ブラウザはサーバーへ通信します。`RunAndWaitForResponseAsync` は、「操作をしてから、その操作で起きた通信の応答が返ってくるまで」をまとめて待つメソッドです。
 
 ```csharp
-var form = page.GetByTestId("form");
-
-// 押す前の処理完了回数を読んでおく（属性がなければ "0" とみなす）
-string before = await form.GetAttributeAsync("data-request-count") ?? "0";
-
-await page.GetByTestId("load-button").ClickAsync();
-
-// 属性の値が「押す前の値ではなくなる」まで待つ（Not を付けると「〜でなくなるまで」になる）
-await Assertions.Expect(form).Not.ToHaveAttributeAsync("data-request-count", before);
+// 第1引数: 実行したい操作（ここでは読み込みボタンのクリック）
+// 第2引数: どの応答を待つかの条件（ここでは「URL が /api/form-data で終わる応答」）
+await page.RunAndWaitForResponseAsync(
+    async () => await page.GetByTestId("load-button").ClickAsync(),
+    response => response.Url.EndsWith("/api/form-data"));
 ```
+
+`async () => ...` や `response => ...` は、その場で小さな関数を書く書き方（ラムダ式）です。「この操作をしてね」「この条件の応答を待ってね」と、処理そのものを引数として渡しています。
+
+応答を待ってから値を確かめれば、「サーバーから値を受け取った後の画面」を確かめていることがはっきりします。
+
+> この2つの道具で足りない場面と、そのときの補助的な手段は、6章の後の「間章」で扱います。間章は読み飛ばしても7章以降に進めます。
 
 ## テストコード
 
@@ -89,22 +100,22 @@ public class LoadTests
         // 同じブラウザなので Cookie は残り、「同じ利用者」として扱われる
         await page.ReloadAsync();
 
-        // --- 3. 読み込みボタンを押し、処理が終わるまで待つ ---
-        var form = page.GetByTestId("form");
-        string before = await form.GetAttributeAsync("data-request-count") ?? "0";
-        await page.GetByTestId("load-button").ClickAsync();
-        await Assertions.Expect(form).Not.ToHaveAttributeAsync("data-request-count", before);
+        // --- 3. 読み込みボタンを押し、サーバーの応答が返るまで待つ ---
+        await page.RunAndWaitForResponseAsync(
+            async () => await page.GetByTestId("load-button").ClickAsync(),
+            response => response.Url.EndsWith("/api/form-data"));
 
-        // --- 4. 各部品の現在の値を読み取り、送信した値と一致するか確かめる ---
-        // InputValueAsync は入力欄・スライダー・プルダウンの「今の値」を文字列で返す
-        Assert.That(await page.GetByTestId("text-input").InputValueAsync(), Is.EqualTo("ダミー太郎"));
-        Assert.That(await page.GetByTestId("slider").InputValueAsync(), Is.EqualTo("42"));
-        Assert.That(await page.GetByTestId("select").InputValueAsync(), Is.EqualTo("banana"));
+        // --- 4. 各部品が送信した値に戻ったことを確かめる ---
+        // ToHaveValueAsync は「その値になるまで」自動で再確認する。
+        // 開き直した直後の画面は初期値（空・50・apple・未選択）なので、
+        // 読み込み結果が反映されて初めてこれらの確認が通る
+        await Assertions.Expect(page.GetByTestId("text-input")).ToHaveValueAsync("ダミー太郎");
+        await Assertions.Expect(page.GetByTestId("slider")).ToHaveValueAsync("42");
+        await Assertions.Expect(page.GetByTestId("select")).ToHaveValueAsync("banana");
 
-        // ラジオボタンは「緑がオンになっているか」を IsCheckedAsync で確かめる
-        Assert.That(
-            await page.Locator("[data-testid='radio-option'][value='green']").IsCheckedAsync(),
-            Is.True);
+        // ラジオボタンは「緑がオンになっているか」を ToBeCheckedAsync で確かめる
+        await Assertions.Expect(page.Locator("[data-testid='radio-option'][value='green']"))
+            .ToBeCheckedAsync();
     }
 
     [Test]
@@ -139,7 +150,7 @@ public class LoadTests
 4章と5章のテストを並べると、次のことに気付くはずです。
 
 - `"(el, v) => { el.value = v; ... }"` のようなスライダー設定のコードや、`page.GetByTestId("...")` の呼び出しが、何度も繰り返し出てくる
-- 「押す前の回数を読む → クリック → 回数が変わるまで待つ」という手順も、読み込みのたびに書く必要がある
+- 「`RunAndWaitForResponseAsync` でクリックして応答を待つ」「4つの部品を1つずつ `Assertions.Expect` で確かめる」という手順も、読み込みのたびに書く必要がある
 - `"text-input"` のような目印の文字列を、あちこちに直接書いている（書き間違えても気付きにくい）
 
 テストが増えるほど、この繰り返しは負担になります。次の6章では、これらを関数にまとめて整理します。
@@ -147,5 +158,6 @@ public class LoadTests
 ## この章のまとめ
 
 - 同じブラウザ内の `ReloadAsync()` では Cookie が残り、同じ利用者として読み込める
-- 成功時にメッセージが空になる処理は、`data-request-count` の変化を `Expect(...).Not.ToHaveAttributeAsync` で待つ
-- `InputValueAsync()` と `IsCheckedAsync()` で、復元された値を読み取って確かめる
+- 成功時にメッセージが空になる処理は、`RunAndWaitForResponseAsync` でクリックとサーバーの応答待ちをまとめて行う
+- 復元された値は `Assertions.Expect(...).ToHaveValueAsync(...)` / `ToBeCheckedAsync()` で、期待する値になるまで待ちながら確かめる
+- `InputValueAsync()` のような「今の値を読む」メソッドは待たないので、確かめる用途には `Assertions.Expect` を使う

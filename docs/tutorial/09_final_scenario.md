@@ -6,7 +6,7 @@
 
 - 8章: `[OneTimeSetUp]` / `[OneTimeTearDown]` / `[SetUp]` / `[TearDown]` によるライフサイクル管理と、サーバーの自動起動
 - 7章: `FormValuesTestCase`（`ExpectedSubmitSuccess` / `ExpectedRestored`）と `[TestCaseSource]`
-- 6章: ヘルパー関数（`SetFormValuesAsync`、`ClickSubmitButtonAsync`、`ClickLoadButtonAsync`、`GetFormValuesAsync`、`GetMessageAsync`）
+- 6章: ヘルパー関数（`SetFormValuesAsync`、`ClickSubmitButtonAsync`、`ClickLoadButtonAsync`、`ExpectFormValuesAsync`、`ExpectMessageTypeAsync`）と、ボタンの関数が応答を待ってから戻る理由
 - 5章: 同じコンテキスト内の `ReloadAsync()` では Cookie が残ること、未保存のときは `message--info` が表示されること
 - 1章: テストの独立性
 
@@ -21,11 +21,10 @@
 public async Task SubmitAndVerifySavedResult(FormValuesTestCase testCase)
 {
     await SetFormValuesAsync(_page!, testCase.Input);   // 6章: 4つの部品へまとめて入力
-    await ClickSubmitButtonAsync(_page!);               // 6章: クリック＋処理完了待ち
-    MessageState message = await GetMessageAsync(_page!);
+    await ClickSubmitButtonAsync(_page!);               // 6章: クリック＋応答待ち
 
     // 7章: 期待値はテストケースのデータから決まる
-    Assert.That(message.Type, Is.EqualTo(testCase.ExpectedSubmitSuccess ? "success" : "error"));
+    await ExpectMessageTypeAsync(_page!, testCase.ExpectedSubmitSuccess ? "success" : "error");
 }
 ```
 
@@ -43,6 +42,7 @@ public async Task LoadAndVerifyRestoredValues(FormValuesTestCase testCase)
     // シナリオ1の結果には頼らない（そもそも [SetUp] でコンテキストが新しくなるので、
     // シナリオ1で保存したデータの Cookie はこのテストには残っていない）
     await SetFormValuesAsync(_page!, testCase.Input);
+    // 送信の応答が返るまで待ってから戻るので、直後に開き直しても保存が中断されない（6章）
     await ClickSubmitButtonAsync(_page!);
 
     // 同じコンテキストなので Cookie は残る → 同じ利用者として読み込める（5章）
@@ -51,24 +51,13 @@ public async Task LoadAndVerifyRestoredValues(FormValuesTestCase testCase)
 
     if (testCase.ExpectedRestored is not null)
     {
-        // 保存に成功するはずのケース: 画面の4つの値が期待どおりに戻っているか
-        FormValues restored = await GetFormValuesAsync(_page!);
-
-        // Assert.Multiple: 1つ目が失敗しても残りも確かめ、ずれている項目をまとめて報告する
-        Assert.Multiple(() =>
-        {
-            Assert.That(restored.Text, Is.EqualTo(testCase.ExpectedRestored.Text));
-            // 小数を比べるときは、ごくわずかな誤差を許す（Within）のが安全
-            Assert.That(restored.Slider, Is.EqualTo(testCase.ExpectedRestored.Slider).Within(1e-9));
-            Assert.That(restored.Select, Is.EqualTo(testCase.ExpectedRestored.Select));
-            Assert.That(restored.Radio, Is.EqualTo(testCase.ExpectedRestored.Radio));
-        });
+        // 保存に成功するはずのケース: 画面の4つの値が期待どおりに戻るまで待って確かめる
+        await ExpectFormValuesAsync(_page!, testCase.ExpectedRestored);
     }
     else
     {
         // 保存が拒否されるはずのケース: 何も保存されていないので「保存されたデータがありません。」が出る
-        MessageState message = await GetMessageAsync(_page!);
-        Assert.That(message.Type, Is.EqualTo("info"));
+        await ExpectMessageTypeAsync(_page!, "info");
     }
 }
 ```
@@ -94,9 +83,20 @@ public async Task LoadAndVerifyRestoredValues(FormValuesTestCase testCase)
 
 | 学習用プロジェクト | 完成版テスト | 違い |
 |---|---|---|
-| `FormPageHelpers.cs`（6章） | `TestData/FormPageHelpers.cs` | 関数の中身は同じ。学習用では `FormValues` / `MessageState` / `FormTestIds` もこのファイルに置いた |
-| `FormTestData.cs`（7章） | `TestData/FormTestData.cs` | 完成版は、6章の `FormValues` / `MessageState` / `FormTestIds` もこちらのファイルにまとめている |
+| `FormPageHelpers.cs`（6章） | `TestData/FormPageHelpers.cs` | 値を入れる関数は同じ。**確かめ方と待ち方が違う**（下記参照）。学習用では `FormValues` / `FormTestIds` もこのファイルに置いた |
+| `FormTestData.cs`（7章） | `TestData/FormTestData.cs` | 完成版は、`FormValues` / `FormTestIds` のほか、メッセージの状態を表す型 `MessageState` もこちらのファイルにまとめている |
 | `FixtureTests.cs`（8〜9章） | `Scenarios/FormDataScenarioTests.cs` | サーバーの場所を `global.json` から探す（`FindServerProjectPath`）。起動前にポート使用中を検出する。環境変数 `LEARNPLAYWRIGHT_HEADED=1` でブラウザ画面を表示して実行できる。この2つのシナリオのほかに、画面表示・Cookie発行・異常系などを確かめる追加のテストも含まれている |
+
+### 完成版ヘルパーの確かめ方・待ち方
+
+完成版の `FormPageHelpers.cs` は、6章とは違う方針で書かれています。
+
+- **確かめ方**: 6章の「期待どおりになるまで待って確かめる関数」（`ExpectFormValuesAsync` など）の代わりに、「今の値を読む関数」（`GetFormValuesAsync` / `GetMessageAsync`）を持ち、テスト側で `Assert.That` を使って比べます。NUnit の `Assert.Multiple`（中の `Assert.That` が途中で失敗しても残りも確かめ、ずれている項目をまとめて報告する機能）を使えるようにするためです。
+- **待ち方**: 今の値を読む関数は待たないので、ボタンの関数（`ClickSubmitButtonAsync` / `ClickLoadButtonAsync`）が、サーバーの応答だけでなく**画面の書き換えまで終わるのを待ってから**戻るようにしています。そのために、アプリの form 要素に付けた `data-request-count` 属性（処理が終わるたびに1ずつ増える数）が変わるのを待っています。
+
+この書き方の理由と代償は「間章」で詳しく扱っています。間章を読んでいなくても、完成版のボタンの関数は「押した後、画面の書き換えまで終わるのを待ってから戻る関数」と読めば十分です。
+
+### 共通する形
 
 どちらも、テストメソッドの中には**画面の細かい操作（DOM操作）も、入力値の直書きもありません**。操作はヘルパー関数に、入力値と期待値はテストケースのデータに任せ、テストメソッドは「手順」だけを書いています。これがこの教材で目指してきた形です。
 
@@ -109,8 +109,9 @@ public async Task LoadAndVerifyRestoredValues(FormValuesTestCase testCase)
 | 2 | ページを開いてタイトルを確かめる最小のテスト |
 | 3 | `data-testid` を使ったロケーター |
 | 4 | 入力・送信と、`Assertions.Expect` による変化の待機 |
-| 5 | 読み込みと復元の検証、`data-request-count` による処理完了待ち |
-| 6 | ヘルパー関数による整理 |
+| 5 | 読み込みと復元の検証、`RunAndWaitForResponseAsync` による応答待ちと `ToHaveValueAsync` による値の確認 |
+| 6 | ヘルパー関数による整理（操作する関数と確かめる関数） |
+| 間章 | （任意）5〜6章の書き方で足りない場面と、アプリ側に処理完了の目印を置く補助的な手段 |
 | 7 | `[TestCaseSource]` によるデータ駆動テスト |
 | 8 | ライフサイクル属性とサーバーの自動起動 |
 | 9 | 2つのシナリオテストの完成 |

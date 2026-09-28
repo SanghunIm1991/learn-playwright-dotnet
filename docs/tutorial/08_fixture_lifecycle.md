@@ -5,7 +5,7 @@
 ## この章の前提知識
 
 - 7章: `[TestCaseSource]` と `FormValuesTestCases.GetCases` で1つのテストメソッドを複数ケース実行できること
-- 6章: ヘルパー関数（`SetFormValuesAsync`、`ClickSubmitButtonAsync`、`GetMessageAsync` など）
+- 6章: ヘルパー関数（`SetFormValuesAsync`、`ClickSubmitButtonAsync`、`ExpectMessageTypeAsync` など）
 - 5章: 同じブラウザ内では Cookie が残り、新しく起動したブラウザには Cookie がないこと
 - 2章: `Playwright.CreateAsync()` → `LaunchAsync` → `NewPageAsync` → `GotoAsync` の流れ
 - 1章: テストの独立性の考え方、サーバー起動待ちはテスト実行側の待機で Playwright の自動待機とは別物であること
@@ -200,9 +200,7 @@ public sealed class FixtureTests
     {
         await SetFormValuesAsync(_page!, testCase.Input);
         await ClickSubmitButtonAsync(_page!);
-        MessageState message = await GetMessageAsync(_page!);
-
-        Assert.That(message.Type, Is.EqualTo(testCase.ExpectedSubmitSuccess ? "success" : "error"));
+        await ExpectMessageTypeAsync(_page!, testCase.ExpectedSubmitSuccess ? "success" : "error");
     }
 
     // サーバーの起動完了待ち: GET /api/form-data が 200 か 404 を返せば「応答できる状態」とみなす。

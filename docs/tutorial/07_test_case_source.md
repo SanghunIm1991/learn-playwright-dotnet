@@ -4,7 +4,7 @@
 
 ## この章の前提知識
 
-- 6章: `FormValues` / `MessageState` 型、`FormTestIds` 定数、ヘルパー関数（`SetFormValuesAsync`、`ClickSubmitButtonAsync`、`GetMessageAsync` など）
+- 6章: `FormValues` 型、`FormTestIds` 定数、ヘルパー関数（`SetFormValuesAsync`、`ClickSubmitButtonAsync`、`ExpectMessageTypeAsync` など）
 - 4章: テキストは1000文字まで保存でき、1001文字だと拒否される（`message--error`）こと
 - 1章: 入力値と期待値をデータとして一か所にまとめ、テストの手順と分ける考え方
 
@@ -156,10 +156,9 @@ public class DataDrivenTests
         // 入力値はテストケースから受け取る。メソッドの中に値を直接書かない
         await SetFormValuesAsync(page, testCase.Input);
         await ClickSubmitButtonAsync(page);
-        MessageState message = await GetMessageAsync(page);
 
         // 期待する結果もテストケースから決まる（成功なら success、拒否なら error）
-        Assert.That(message.Type, Is.EqualTo(testCase.ExpectedSubmitSuccess ? "success" : "error"));
+        await ExpectMessageTypeAsync(page, testCase.ExpectedSubmitSuccess ? "success" : "error");
     }
 }
 ```

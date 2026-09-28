@@ -1,11 +1,11 @@
 # 6章 ヘルパー関数によるコードの整理
 
-5章の最後で、同じようなコードが何度も出てくることに気付きました。この章では、それらを**ヘルパー関数**（よく使う処理をまとめた関数）に切り出し、テスト本体を短く読みやすくします。ここで作る関数は、完成版テストの `tests/LearnPlaywright.Tests/TestData/FormPageHelpers.cs` と同じものです。
+5章の最後で、同じようなコードが何度も出てくることに気付きました。この章では、それらを**ヘルパー関数**（よく使う処理をまとめた関数）に切り出し、テスト本体を短く読みやすくします。
 
 ## この章の前提知識
 
-- 4章: 各部品の操作（`FillAsync` / スライダーの `EvaluateAsync` / `SelectOptionAsync` / `CheckAsync` / `ClickAsync`）と、`Assertions.Expect` による待機
-- 5章: `data-request-count` の変化を待つ書き方、`InputValueAsync()` による値の読み取り、`ReloadAsync()` と Cookie の関係
+- 4章: 各部品の操作（`FillAsync` / スライダーの `EvaluateAsync` / `SelectOptionAsync` / `CheckAsync` / `ClickAsync`）と、`Assertions.Expect(...).ToHaveClassAsync(...)` による待機
+- 5章: `RunAndWaitForResponseAsync` による応答待ち、`ToHaveValueAsync` / `ToBeCheckedAsync` による値の確認、`ReloadAsync()` と Cookie の関係
 - 3章: `GetByTestId` と、ラジオボタンの `value` による絞り込み
 
 ## 整理の方針
@@ -14,9 +14,12 @@
 |---|---|
 | 目印の文字列 `"text-input"` を直接書く | 定数クラス `FormTestIds` にまとめる |
 | 4つの値をばらばらに扱う | 4つの値をまとめた型 `FormValues` を作る |
-| 部品ごとに操作コードを毎回書く | 部品ごとの「入れる／読む」関数を作る |
-| 4つの部品を1つずつ操作する | まとめて入れる／読む関数を作る |
-| メッセージ欄のクラスを毎回調べる | 表示状態を返す関数と型 `MessageState` を作る |
+| 部品ごとに操作コードを毎回書く | 部品ごとの「値を入れる」関数を作る |
+| クリックと応答待ちを毎回書く | 「押して応答を待つ」関数を作る |
+| 4つの部品を1つずつ確かめる | まとめて入れる／まとめて確かめる関数を作る |
+| メッセージ欄のクラスを毎回調べる | メッセージの種類を確かめる関数を作る |
+
+ヘルパー関数は「操作する関数」と「確かめる関数」に分けます。確かめる関数の中身は 4〜5章と同じ `Assertions.Expect` なので、画面が期待どおりになるまで自動で待ってくれます。
 
 ## 手順1: 型と定数を用意する
 
@@ -24,6 +27,7 @@
 
 ```csharp
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 
 namespace MyFirstPlaywrightTests;
@@ -36,9 +40,6 @@ public sealed record FormValues(
     string? Radio    // 選んだラジオボタンの value（red / green / blue）。未選択は null
 );
 
-// メッセージ欄の表示状態。Type は "success" / "error" / "info"、何も表示していなければ null
-public sealed record MessageState(string Text, string? Type);
-
 // 目印（data-testid）の値を1か所で管理する。書き間違いはコンパイル時に気付ける
 public static class FormTestIds
 {
@@ -49,27 +50,18 @@ public static class FormTestIds
     public const string SubmitButton = "submit-button";
     public const string LoadButton = "load-button";
     public const string MessageArea = "message-area";
-    public const string Form = "form"; // data-request-count を持つ form 要素
 }
 ```
 
-## 手順2: 部品ごとの「入れる／読む」関数
+## 手順2: 部品ごとに値を入れる関数
 
-同じファイルに、続けて `FormPageHelpers` クラスを書きます。中身は4〜5章で書いたコードそのものです。
+同じファイルに、続けて `FormPageHelpers` クラスを書きます。中身は4章で書いたコードそのものです。
 
 ```csharp
 public static class FormPageHelpers
 {
-    // form 要素が持つ「通信を何回したか」の属性名。通信が終わると app.js がこの数を1増やすので、
-    // 値の変化を見れば「通信が終わった」と分かる（下の送信・読み込み関数で使う）。
-    // 文字列を何か所にも直接書くと書き間違えに気付きにくいので、定数にして1か所で管理する
-    private const string RequestCountAttribute = "data-request-count";
-
-    // メッセージ欄の種類（成功・エラー・お知らせ）。画面では "message--success" のような
-    // class 名で表されるので、この一覧と照らし合わせて今の種類を調べる。
-    // 一覧にある種類だけを対象に調べ、一覧外の class は無視される。
-    // 複数の種類の class が同じ要素に付いている場合のみエラーになる
-    private static readonly string[] MessageTypes = ["success", "error", "info"];
+    // 送信・読み込みのどちらも、この URL のサーバー API と通信する（app.js と同じ値）
+    private const string FormDataApiPath = "/api/form-data";
 
     // テキストボックスに入力する（4章の FillAsync と同じ）
     public static async Task SetTextBoxValueAsync(IPage page, string value)
@@ -77,13 +69,6 @@ public static class FormPageHelpers
         ArgumentNullException.ThrowIfNull(page);   // 引数の渡し忘れを早めに見つけるための確認
         ArgumentNullException.ThrowIfNull(value);
         await page.GetByTestId(FormTestIds.TextInput).FillAsync(value);
-    }
-
-    // テキストボックスの今の値を読む（5章の InputValueAsync と同じ）
-    public static async Task<string> GetTextBoxValueAsync(IPage page)
-    {
-        ArgumentNullException.ThrowIfNull(page);
-        return await page.GetByTestId(FormTestIds.TextInput).InputValueAsync();
     }
 
     // スライダーに値を設定する（4章の EvaluateAsync 方式）
@@ -97,14 +82,6 @@ public static class FormPageHelpers
             value.ToString(CultureInfo.InvariantCulture));
     }
 
-    // スライダーの今の値を読み、数値に変換して返す
-    public static async Task<double> GetSliderValueAsync(IPage page)
-    {
-        ArgumentNullException.ThrowIfNull(page);
-        string raw = await page.GetByTestId(FormTestIds.Slider).InputValueAsync();
-        return double.Parse(raw, CultureInfo.InvariantCulture);
-    }
-
     // プルダウンで選択肢を選ぶ（4章の SelectOptionAsync と同じ。value は option の value 属性の値）
     public static async Task SetSelectValueAsync(IPage page, string value)
     {
@@ -113,61 +90,45 @@ public static class FormPageHelpers
         await page.GetByTestId(FormTestIds.Select).SelectOptionAsync(value);
     }
 
-    // プルダウンで今選ばれている選択肢の value を読む（5章の InputValueAsync と同じ）
-    public static async Task<string> GetSelectValueAsync(IPage page)
-    {
-        ArgumentNullException.ThrowIfNull(page);
-        return await page.GetByTestId(FormTestIds.Select).InputValueAsync();
-    }
-
     // ラジオボタンを選ぶ。null のときは何もしないで終わる（既に選択済みでも解除はしない。何も選ばれていない開いたばかりのページで使う前提）
-    // ※アプリ側（app.js）は、radio が null の保存データを「読み込む」と全ラジオの選択を解除する
     public static async Task SetRadioValueAsync(IPage page, string? value)
     {
         ArgumentNullException.ThrowIfNull(page);
         if (value is null) return;
+        await RadioOption(page, value).CheckAsync();
+    }
+
+    // value でラジオボタンを1つに絞り込んだロケーターを返す（3章の書き方）。
+    // 入れる関数と確かめる関数の両方で使うので、1か所にまとめている
+    private static ILocator RadioOption(IPage page, string value)
+    {
         // 改行などの制御文字はCSSセレクタを壊すため受け付けない
         if (value.Any(char.IsControl))
             throw new ArgumentException("ラジオボタンの値に制御文字は使えません。", nameof(value));
         // 値に ' や \ が含まれてもセレクタが壊れないようエスケープする
         // （セレクタの中では ' で値を囲んでいるので、値の中の ' はそのままだと「値の終わり」と誤解される）
         string escaped = value.Replace("\\", "\\\\").Replace("'", "\\'");
-        await page.Locator($"[data-testid='{FormTestIds.RadioOption}'][value='{escaped}']").CheckAsync();
-    }
-
-    // 選ばれているラジオボタンの value を返す。1つも選ばれていなければ null
-    public static async Task<string?> GetRadioValueAsync(IPage page)
-    {
-        ArgumentNullException.ThrowIfNull(page);
-        var all = page.GetByTestId(FormTestIds.RadioOption);
-        if (await all.CountAsync() == 0) throw new InvalidOperationException("No radio buttons found.");
-
-        // :checked は「オンになっているもの」だけに絞り込むCSSの書き方
-        var checkedRadios = page.Locator($"[data-testid='{FormTestIds.RadioOption}']:checked");
-        int checkedCount = await checkedRadios.CountAsync();
-        if (checkedCount == 0) return null;
-        if (checkedCount > 1) throw new InvalidOperationException("Multiple radio buttons are checked.");
-        return await checkedRadios.GetAttributeAsync("value");
+        return page.Locator($"[data-testid='{FormTestIds.RadioOption}'][value='{escaped}']");
     }
 ```
 
-## 手順3: ボタン・まとめ操作・メッセージの関数
+## 手順3: ボタン・まとめ操作・確認の関数
 
 `FormPageHelpers` クラスの続きです。
 
 ```csharp
-    // 送信ボタンを押し、処理が終わるまで待つ
+    // 送信ボタンを押し、サーバーの応答が返るまで待つ
     public static async Task ClickSubmitButtonAsync(IPage page)
     {
         ArgumentNullException.ThrowIfNull(page);
-        await ClickAndWaitForCompletionAsync(page, FormTestIds.SubmitButton);
+        await ClickAndWaitForResponseAsync(page, FormTestIds.SubmitButton, "POST");
     }
 
-    // 読み込みボタンを押し、処理が終わるまで待つ
+    // 読み込みボタンを押し、サーバーの応答が返るまで待つ
     public static async Task ClickLoadButtonAsync(IPage page)
     {
         ArgumentNullException.ThrowIfNull(page);
-        await ClickAndWaitForCompletionAsync(page, FormTestIds.LoadButton);
+        await ClickAndWaitForResponseAsync(page, FormTestIds.LoadButton, "GET");
     }
 
     // 4つの部品にまとめて値を入れる
@@ -181,44 +142,60 @@ public static class FormPageHelpers
         await SetRadioValueAsync(page, values.Radio);
     }
 
-    // 4つの部品の今の値をまとめて読み、FormValues にして返す
-    public static async Task<FormValues> GetFormValuesAsync(IPage page)
+    // 4つの部品が期待どおりの値になっていることを確かめる。
+    // 5章と同じく Assertions.Expect を使うので、画面に反映されるまで自動で待つ
+    public static async Task ExpectFormValuesAsync(IPage page, FormValues expected)
     {
         ArgumentNullException.ThrowIfNull(page);
-        return new FormValues(
-            await GetTextBoxValueAsync(page),
-            await GetSliderValueAsync(page),
-            await GetSelectValueAsync(page),
-            await GetRadioValueAsync(page));
+        ArgumentNullException.ThrowIfNull(expected);
+        await Assertions.Expect(page.GetByTestId(FormTestIds.TextInput)).ToHaveValueAsync(expected.Text);
+        // 画面のスライダーの値は "42" のような文字列なので、数値を同じ形の文字列にして比べる
+        await Assertions.Expect(page.GetByTestId(FormTestIds.Slider))
+            .ToHaveValueAsync(expected.Slider.ToString(CultureInfo.InvariantCulture));
+        await Assertions.Expect(page.GetByTestId(FormTestIds.Select)).ToHaveValueAsync(expected.Select);
+
+        if (expected.Radio is null)
+        {
+            // 「未選択」を期待する場合: オンになっているラジオボタン（:checked）が0個であること。
+            // ToHaveCountAsync は「要素の数が指定の数になるまで」待って確かめるアサーション
+            await Assertions.Expect(page.Locator($"[data-testid='{FormTestIds.RadioOption}']:checked"))
+                .ToHaveCountAsync(0);
+        }
+        else
+        {
+            await Assertions.Expect(RadioOption(page, expected.Radio)).ToBeCheckedAsync();
+        }
     }
 
-    // メッセージ欄の文言と種別（クラス名 message--xxx の xxx 部分）を読み取る
-    public static async Task<MessageState> GetMessageAsync(IPage page)
+    // メッセージ欄の種類（"success" / "error" / "info"）が期待どおりであることを確かめる。
+    // 種類は class 名 "message--success" などで表されるので、4章と同じ ToHaveClassAsync で確かめる
+    public static async Task ExpectMessageTypeAsync(IPage page, string expectedType)
     {
         ArgumentNullException.ThrowIfNull(page);
-        var area = page.GetByTestId(FormTestIds.MessageArea);
-        string text = await area.TextContentAsync() ?? string.Empty;
-        string[] classes = (await area.GetAttributeAsync("class") ?? string.Empty)
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-        var types = MessageTypes.Where(t => classes.Contains("message--" + t)).ToList();
-        if (types.Count > 1) throw new InvalidOperationException("Multiple message type classes are set.");
-        return new MessageState(text, types.Count == 1 ? types[0] : null);
+        ArgumentNullException.ThrowIfNull(expectedType);
+        // \b は「単語の区切り」。"message--info" が "message--information" のような別名に一致しないようにする。
+        // $@"..." は「{ } で値を埋め込める」＋「\ をそのまま書ける」文字列。
+        // Regex.Escape は、値に正規表現で特別な意味を持つ記号が含まれていても文字どおりに扱わせるための変換
+        await Assertions.Expect(page.GetByTestId(FormTestIds.MessageArea))
+            .ToHaveClassAsync(new Regex($@"\bmessage--{Regex.Escape(expectedType)}\b"));
     }
 
-    // 5章の「押す前の回数を覚える → クリック → 回数が変わるまで待つ」を1か所にまとめたもの。
-    // 送信・読み込みのどちらもこれを使うので、クリック後は必ず処理完了まで待ってから戻る
-    private static async Task ClickAndWaitForCompletionAsync(IPage page, string buttonTestId)
+    // 5章の「クリックして応答を待つ」を1か所にまとめたもの。
+    // 送信（POST）と読み込み（GET）は同じ URL なので、HTTP メソッドも条件に入れて区別する
+    private static async Task ClickAndWaitForResponseAsync(IPage page, string buttonTestId, string method)
     {
-        var form = page.GetByTestId(FormTestIds.Form);
-        string before = await form.GetAttributeAsync(RequestCountAttribute) ?? "0";
-        await page.GetByTestId(buttonTestId).ClickAsync();
-        await Assertions.Expect(form).Not.ToHaveAttributeAsync(RequestCountAttribute, before);
+        await page.RunAndWaitForResponseAsync(
+            async () => await page.GetByTestId(buttonTestId).ClickAsync(),
+            response => response.Url.EndsWith(FormDataApiPath) && response.Request.Method == method);
     }
 }
 ```
 
-`GetMessageAsync` は待たずに今の状態を読みますが、呼ぶ前に `ClickSubmitButtonAsync` が処理完了まで待っているので、読んだ時点で結果は画面に出ています。
+### なぜボタンの関数でも応答を待つのか
+
+確かめる関数（`ExpectFormValuesAsync` / `ExpectMessageTypeAsync`）は自分で待つので、「ボタンを押す関数」は押すだけでもよさそうに見えます。それでも応答を待つようにしているのは、**ボタンを押した直後に次の操作をしても、通信の途中で割り込まないようにするため**です。
+
+たとえば「送信ボタンを押す → すぐにページを開き直す（`ReloadAsync`）」と書いた場合、応答を待たないと、保存が終わる前にページが開き直されて送信が中断されるおそれがあります。ボタンの関数が応答まで待ってから戻るようにしておけば、呼ぶ側はこうした心配をせずに次の手順を書けます（9章でこの書き方を使います）。
 
 ## 手順4: 4〜5章のテストを書き直す
 
@@ -245,10 +222,8 @@ public class HelperTests
 
         // 4つの部品への入力が1行で済む（値はダミー）
         await SetFormValuesAsync(page, new FormValues("ダミー太郎", 42, "banana", "green"));
-        await ClickSubmitButtonAsync(page);        // クリック＋処理完了待ち
-
-        MessageState message = await GetMessageAsync(page);
-        Assert.That(message.Type, Is.EqualTo("success"));
+        await ClickSubmitButtonAsync(page);                 // クリック＋応答待ち
+        await ExpectMessageTypeAsync(page, "success");      // 「成功」の表示になるまで待って確かめる
     }
 
     [Test]
@@ -264,16 +239,19 @@ public class HelperTests
         await SetFormValuesAsync(page, input);
         await ClickSubmitButtonAsync(page);
         await page.ReloadAsync();                  // 同じブラウザなので Cookie は残る
-        await ClickLoadButtonAsync(page);          // クリック＋処理完了待ち
+        await ClickLoadButtonAsync(page);          // クリック＋応答待ち
 
-        FormValues restored = await GetFormValuesAsync(page);
-        // record 同士は「4つの値がすべて等しいか」で比べられる
-        Assert.That(restored, Is.EqualTo(input));
+        // 送信した値がそのまま戻っていることを、4つまとめて確かめる
+        await ExpectFormValuesAsync(page, input);
     }
 }
 ```
 
 サーバーを起動した状態で `dotnet test` を実行し、`失敗: 0` を確認してください。
+
+## 確認してみよう
+
+`Load_AfterSubmit_RestoresValues` の最後の行を `await ExpectFormValuesAsync(page, new FormValues("ダミー太郎", 42, "cherry", "green"));` に変えて実行すると、5秒ほど待ったあとに失敗し、プルダウンの値が期待（`cherry`）と違うことが表示されます。確かめる関数が、期待どおりになるまで待ってから失敗を報告していることが分かります。確認後は元に戻してください。
 
 ## まだ残っている課題
 
@@ -281,6 +259,7 @@ public class HelperTests
 
 ## この章のまとめ
 
-- 目印は `FormTestIds`、4つの値は `FormValues`、メッセージは `MessageState` にまとめた
-- `SetFormValuesAsync` / `ClickSubmitButtonAsync` / `ClickLoadButtonAsync` / `GetFormValuesAsync` / `GetMessageAsync` で、テスト本体が短くなった
-- クリック後の処理完了待ちはヘルパーの中に1か所だけ書けばよくなった
+- 目印は `FormTestIds`、4つの値は `FormValues` にまとめた
+- 操作する関数（`SetFormValuesAsync` / `ClickSubmitButtonAsync` / `ClickLoadButtonAsync`）と、確かめる関数（`ExpectFormValuesAsync` / `ExpectMessageTypeAsync`）に分けた
+- 確かめる関数は `Assertions.Expect` を使うので、画面に反映されるまで自動で待つ
+- ボタンを押す関数は応答が返るまで待ってから戻るので、直後に次の操作を書いても通信の途中で割り込まない
