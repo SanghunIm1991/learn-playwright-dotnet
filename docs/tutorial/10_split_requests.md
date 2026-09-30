@@ -33,7 +33,7 @@
 | | テスト1: 通信の形 | テスト2: データ全体 |
 |---|---|---|
 | 確かめること | 何件の通信を、どこへ送ったか。1件ずつ、何を送り何が返ったか | 全部の通信の本文をまとめた「送ったデータ全体」が期待どおりか |
-| リファクタリングで | **変わる**（4件 → 1件）。失敗したら「形が変わった」合図。新しい形に合わせて書き直す | **変わってはいけない**。書き直さずにそのまま合格し続けることが、リファクタリング成功の条件 |
+| リファクタリングで | **変わる**（4件 → 1件）。失敗したら「形が変わった」合図。新しい形に合わせて書き直す | **変わってはいけない**。書き直さずにそのまま合格し続けることが、リファクタリング成功の条件（本文の形そのものを変える場合の扱いは「自分のプロジェクトで使うとき」を参照） |
 
 1つのテストで両方を確かめてしまうと、リファクタリング後にテストが失敗したとき、「形が変わっただけ（予定どおり）」なのか「データが壊れた（不具合）」なのかを見分けられません。
 
@@ -45,6 +45,8 @@ Playwright では、ページで起きた通信の応答を `page.Response` イ�
 - `response.Status` / `await response.TextAsync()`: 返ってきた状態コード・本文
 
 を読み取れます。5章の `RunAndWaitForResponseAsync` は「1件の応答を待つ」道具でしたが、この章では「ある操作の間に起きた通信を**全部**記録する」ために、イベントを使います。
+
+記録できるのは「応答が返ってきた通信」です。下で使う `RouteAsync`（偽の応答を返す機能）で応答した通信にも、本物のサーバーの応答と同じように `page.Response` イベントが起きます。一方、応答が返らずに失敗した通信（接続できなかった等）は `page.Response` には現れず、記録されません（そのような通信は `page.RequestFailed` という別のイベントで知ることができます）。
 
 ## 練習用のページについて
 
@@ -58,7 +60,7 @@ Playwright では、ページで起きた通信の応答を `page.Response` イ�
 
 ## 手順1: 練習用ページ（偽のサーバー）
 
-学習用プロジェクトに `LegacyPracticeSite.cs` を作ります。**このファイルは練習のための道具**なので、中の HTML・JavaScript を細かく読む必要はありません。送信ボタンの処理（`Promise.all([...])` の4行）が「部品ごとに別々の POST を同時に送っている」ことだけ確認してください。
+学習用プロジェクトに `LegacyPracticeSite.cs` を作ります。**このファイルは練習のための道具**なので、中の HTML・JavaScript を細かく読む必要はありません。送信ボタンの処理（`await Promise.all([...]);` の文）が「部品ごとに別々の POST を同時に送っている」ことだけ確認してください。
 
 ```csharp
 using System.Text.Json.Nodes;
@@ -97,7 +99,7 @@ public static class LegacyPracticeSite
                     Body = PageHtml,
                 });
             }
-            else if (request.Method == "POST" && path.StartsWith(ApiPathPrefix))
+            else if (request.Method == "POST" && path.StartsWith(ApiPathPrefix, StringComparison.Ordinal))
             {
                 // 偽のサーバーの返事: どの項目を受け取ったか（URL の最後の部分）と、保存できたか
                 var field = path[ApiPathPrefix.Length..];
@@ -235,13 +237,15 @@ public sealed class RequestRecorder : IDisposable
         return exchanges;
     }
 
-    // JSON を、失敗メッセージで読みやすい文字列にする（日本語を \uXXXX にしない）
+    // JSON を、失敗メッセージで読みやすい文字列にする（日本語を \uXXXX にしない）。
+    // UnsafeRelaxedJsonEscaping は「HTML に埋め込むと危険な文字もそのまま出す」設定。
+    // ここではテストの失敗メッセージに表示するだけで、HTML には埋め込まないので問題ない
     public static string ToDisplay(JsonNode? node) =>
         node?.ToJsonString(new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }) ?? "null";
 
     private void OnResponse(object? sender, IResponse response)
     {
-        if (!new Uri(response.Url).AbsolutePath.StartsWith(_pathPrefix)) return;
+        if (!new Uri(response.Url).AbsolutePath.StartsWith(_pathPrefix, StringComparison.Ordinal)) return;
         // 応答は Playwright 側の処理から届くので、lock で「読んでいる最中の追加」を防ぐ
         lock (_responses) _responses.Add(response);
     }
@@ -405,6 +409,9 @@ public sealed class SplitRequestTests
         {
             if (exchange.RequestBody is not JsonObject body)
             {
+                // Assert.Fail は、その場でテストを失敗させて止める（この後の処理は実行されない）。
+                // ただしコンパイラはそれを知らず、下の body を「値が入っていないかもしれない」と扱うので、
+                // continue（次の繰り返しへ進む）を書いて、この先へは進まないことをコンパイラに示している
                 Assert.Fail($"{exchange.Path} の本文が JSON オブジェクトではありません: {RequestRecorder.ToDisplay(exchange.RequestBody)}");
                 continue;
             }
@@ -438,7 +445,7 @@ public sealed class SplitRequestTests
 
 この待ち方をしないと、たとえばボタンを押した直後に記録を取り出して「2件しか記録されていない」と誤って失敗することがあります。4章から一貫している「決め打ちの時間で待たず、終わった合図を待つ」考え方です。
 
-アプリに完了の表示がない場合は、「来るはずの応答」を1件ずつ待つ方法があります。待ち始めるのはクリックの**前**です（5章の `RunAndWaitForResponseAsync` と同じ理由です）。
+アプリに完了の表示がない場合は、「来るはずの応答」を1件ずつ待つ方法があります。待ち始めるのはクリックの**前**です。クリックの後で待ち始めると、応答がすでに返ってしまっていた場合に取りこぼし、来ない応答を待ち続けてしまうためです（5章の `RunAndWaitForResponseAsync` が「操作」と「待つ条件」を1つのメソッドにまとめて受け取るのも、待ち始めを操作より前にするためです）。
 
 ```csharp
 using var recorder = new RequestRecorder(_page!, LegacyPracticeSite.ApiPathPrefix);
@@ -456,9 +463,11 @@ var exchanges = await recorder.GetExchangesAsync();
 
 ただしこの方法では、4件の応答が返った**後**に余計な5件目が送られた場合、それが記録される前にテストが先へ進むことがあります。「余計な通信がないこと」まで確かめたい場合は、アプリの完了表示を待つ方法の方が確実です。
 
+自分のプロジェクトで、完了表示を待つ方法を使っているのに記録の件数がときどき足りない（最後の1件の記録が完了表示より遅れて届く）場合は、2つの方法を組み合わせてください。クリックの**前**に、上のコードと同じように来るはずの応答を待ち始めておき、クリックの後で完了表示と `Task.WhenAll(waits)` の両方を待ってから、記録を取り出します（完了表示の後で待ち始めると、応答はもう返っているので取りこぼします）。
+
 ### 期待値の決め方
 
-特性テストの期待値は、「仕様書に書いてある値」ではなく**今のアプリが実際に送っている値**です。初めて書くときは、ブラウザの開発者ツール（F12 → ネットワーク）で実際の通信を見たり、`GetExchangesAsync` の結果を `TestContext.Out.WriteLine(RequestRecorder.ToDisplay(...))` で書き出したりして、観察した値を期待値に書き写します。
+特性テストの期待値は、「仕様書に書いてある値」ではなく**今のアプリが実際に送っている値**です。初めて書くときは、ブラウザの開発者ツール（F12 → ネットワーク）で実際の通信を見たり、`GetExchangesAsync` の結果を `TestContext.Progress.WriteLine(RequestRecorder.ToDisplay(...))`（8章で使った、実行中にすぐコンソールへ表示する書き方）で書き出したりして、観察した値を期待値に書き写します。
 
 書き写すときに「これはおかしいのでは」という値を見つけても、**リファクタリングと同時に直さない**でください。まず今の動きのまま固定し、リファクタリングが終わってテストが合格してから、別の変更として直します。「リファクタリングで壊れた」のか「わざと直した」のかが混ざらないようにするためです。
 
@@ -491,7 +500,7 @@ post('/api/legacy/slider', { slider: byTestId('slider').value }),
 
 ## 手順5: リファクタリングした後
 
-アプリを「1回の POST で送る」形に書き換えた後、テストはどうなるでしょうか。練習用ページの `Promise.all([...])` の4行を、次の1行に置き換えて試せます。
+アプリを「1回の POST で送る」形に書き換えた後、テストはどうなるでしょうか。練習用ページの `await Promise.all([...]);` の文全体（`await Promise.all([` から `]);` まで）を、次の1回の `post` 呼び出しに置き換えて試せます。
 
 ```js
 await post('/api/legacy/form', {
@@ -511,7 +520,7 @@ await post('/api/legacy/form', {
 
 テスト2は通信が何件でも、全部の本文をまとめてから比べているので、4件が1件になっても同じ期待値で合格します。これが、2種類のテストに分けた理由です。
 
-テスト1は、新しい形に合わせて書き直します。たとえば「1件だけ、この送り先に送る」ことを確かめる形です。
+テスト1は、新しい形に合わせて書き直します。たとえば「1件だけ、この送り先に送る」ことを確かめる形です。あわせて、後半の期待値の表（`expected`）も、新しい送り先（`/api/legacy/form`）の1件分に書き換えてください（古い送り先のままだと、表に無いキーを引いてエラーになります）。
 
 ```csharp
 Assert.That(exchanges.Select(e => e.Path), Is.EqualTo(new[] { "/api/legacy/form" }));
@@ -526,7 +535,10 @@ Assert.That(exchanges.Select(e => e.Path), Is.EqualTo(new[] { "/api/legacy/form"
 | 練習用ページを外す | `LegacyPracticeSite.cs` は使わず、`[SetUp]` の `InstallAsync` と `GotoAsync` の2行を、本物のアプリの URL を開く1行に変える。サーバーの起動は8章の方法か手動で行う |
 | 記録するパスを合わせる | `RequestRecorder` に渡すパスを、本物の API の送り先に合わせる |
 | 完了の合図を合わせる | 「保存しました。」の待ち方を、本物のアプリの完了表示に合わせる。表示がなければ、上の「来るはずの応答を1件ずつ待つ」方法を使う |
-| 本文が JSON でない場合 | フォーム形式（`a=1&b=2`）などで送っている場合、`JsonNode.Parse` は失敗する。`request.PostData` は送った本文をそのままの文字列で返すので、その形式に合わせて読み取る処理に置き換える |
+| 同じ送り先へ何度も送っている場合 | 部品ごとに送り先が違うのではなく、同じ送り先へ本文だけ変えて何度も送る作りでは、パスを表のキーにしたテスト1や、パスで待つ方法はそのまま使えない。テスト1は、本文の一覧（`RequestRecorder.ToDisplay` で文字列にしたもの）を `Is.EquivalentTo` で比べる形にする。文字列で比べるので、`JsonNode.DeepEquals` と違って項目の並び順まで一致している必要がある（観察した文字列をそのまま期待値に書き写す）。送る順番に意味がある場合は `Is.EqualTo` で順番まで確かめる。完了を待つには、アプリの完了表示を使う |
+| どの送信にも共通の項目がある場合 | 分割された各送信が、ユーザーID・フォームID・CSRFトークンなどの共通の項目を毎回含んでいると、`MergeRequestBodies` は「複数回送られています」で失敗する。まとめる前に共通の項目を取り除き、「全件で同じ値か」は別のアサーションで確かめる |
+| リファクタリングで本文の形が変わる場合 | 1回にまとめた本文が `{"form":{...}}` のような入れ子になる、項目名が変わる、などの場合は、テスト2も「書き直さずに合格」にはならない。そのときも期待値（`ToExpectedSentData`）は変えず、比べる前に実際の本文を「分割時の本文をまとめたもの」と同じ形にそろえる変換を1か所に用意する。期待値を変えないことで、「中身が変わっていない」ことを確かめ続けられる |
+| 本文が JSON でない場合 | フォーム形式（`a=1&b=2`）などで送っている場合、`JsonNode.Parse` は失敗する。`request.PostData` は送った本文をそのままの文字列で返すので、その形式に合わせて読み取る処理に置き換える。**応答の本文**も同じで、`OK` のような文字列や HTML のエラーページが返ると失敗する（空の本文は null として扱う）。また、送信と同時に別のページへ移動する作りでは、応答の本文を読めないことがある |
 | 保存先への影響 | 本物のサーバーに送ると、実際にデータが保存される。テスト用の環境・テスト用のデータベースで実行する |
 | 入れる値 | 失敗メッセージには送った本文がそのまま表示され、テストの実行ログに残る。**実在の個人情報・パスワード・カード番号などは入れず、ダミー値だけを使う** |
 
@@ -549,9 +561,7 @@ Assert.That(exchanges.Select(e => e.Path), Is.EqualTo(new[] { "/api/legacy/form"
 | `public sealed class RequestRecorder : IDisposable` | `: IDisposable` は「`Dispose`（後片付け）の仕組みを持つ」という宣言。`using` と組み合わせて使う |
 | `using var recorder = ...;` | 変数の有効範囲（ここではメソッド）を抜けるときに、自動で `Dispose` を呼ぶ |
 | `_page.Response -= OnResponse;` | `+=` で登録した「〜が起きたらこの処理」を取り消す |
-| `private readonly List<IResponse> _responses = new();` | `readonly` は「作った後で別のものに差し替えない」指定。`new()` は左の型から作る型が分かるときの省略形 |
 | `Task<IReadOnlyList<CapturedExchange>>` | 「後で `CapturedExchange` の一覧（読み取り専用）が得られる」非同期処理の戻り値 |
-| `exchanges.Select(e => e.Path)` | 一覧の各要素から、`Path` だけを取り出した一覧を作る |
 | `new Dictionary<string, (string Sent, string Received)> { [キー] = (値1, 値2) }` | キーから値を引ける表。値の `(string Sent, string Received)` は2つの値の組（タプル） |
 | `var (sent, received) = expected[exchange.Path];` | 表からキーで値を取り出し、組を2つの変数に分けて受け取る |
 | `foreach (var (name, value) in body)` | JSON オブジェクトの項目を、名前と値に分けて1つずつ取り出す |
@@ -559,5 +569,11 @@ Assert.That(exchanges.Select(e => e.Path), Is.EqualTo(new[] { "/api/legacy/form"
 | `Is.EquivalentTo(...)` | NUnit のアサーション。並び順を問わず、同じ要素がそろっているか |
 | `Is.All.EqualTo(200)` | NUnit のアサーション。すべての要素が 200 か |
 | `Assert.Multiple(() => { ... })` | 中のアサーションが失敗しても止まらず、すべての失敗をまとめて報告する |
-| `Assert.Fail("理由")` | その場でテストを失敗させる |
+| `Assert.Fail("理由")` | その場でテストを失敗させて止める（`Assert.Multiple` の外では、後の処理は実行されない） |
+| `[TestCaseSource(nameof(SentDataCases))]` | 引数が1つの形。同じクラスの中にある `SentDataCases`（ここでは static なフィールド）からケースを読む。7章の `typeof(クラス), nameof(メソッド)` の形は、別のクラスのメソッドから読む書き方 |
+| `AssertJsonEqual(..., string expectedJson, ...)` と `AssertJsonEqual(..., JsonNode? expected, ...)` | 同じ名前で引数の型だけが違うメソッドを複数書ける（オーバーロード）。呼び出し時に渡した値の型で、どちらが使われるかが決まる |
+| `new CapturedExchange(Path: ..., Method: ...)` | 名前付き引数。どの値がどの引数かを、名前を書いて分かりやすくする |
+| `_page.Response += OnResponse;` | 8章の `+= (_, e) => { ... }` と同じ登録を、ラムダ式ではなくメソッドの名前で行う。メソッド名で登録すると、`-=` で同じものを取り消せる |
+| `.ToArray()` / `Task.WhenAll(waits)` | 一覧を配列にする / 複数の非同期処理がすべて終わるまで待つ |
+| `value?.DeepClone()` | `value` が null でなければ、JSON のコピーを作る（null なら null のまま） |
 | `JsonNode.Parse(文字列)` / `JsonNode.DeepEquals(a, b)` | JSON の文字列を読み取る / 2つの JSON の中身が等しいかを比べる |
