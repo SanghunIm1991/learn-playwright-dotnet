@@ -187,7 +187,7 @@ docs/
   handoff_archive.md       （肥大化時のみ）handoff.mdから退避した解決済みの申し送り履歴
 src/                      実装コード（`LearnPlaywright.Server`: ASP.NET Core＋wwwroot〈HTML/CSS/JS〉、`LearnPlaywright.Logic`: ロジック層）
 tests/                    テストコード（`LearnPlaywright.Tests`: Playwright E2E＋COMP-04ヘルパー、`LearnPlaywright.UnitTests`: 単体テスト）
-docs/tutorial/            学習教材（COMP-06、0〜9章）
+docs/tutorial/            学習教材（COMP-06、0〜9章＋任意の間章・10章〈発展〉）
 docs/git_filter_repo_guide/ git filter-repoの解説（examples/は伏せ字版の参照ファイルで公開、private/は伏せ字なしの実物で.gitignore対象）
 docs/learning_samples/    学習用の独立サンプル（usdm_system_design/: 実装から起こしたUSDM形式のシステム要求・システムアーキテクチャ。正式資料・トレーサビリティとは混ぜない）
 ```

@@ -142,3 +142,4 @@ public async Task LoadAndVerifyRestoredValues(FormValuesTestCase testCase)
 - リポジトリの `tests/LearnPlaywright.Tests` 配下のコードを、最初から最後まで読んでみましょう。2つのシナリオとヘルパー関数の大筋は、ここまでの内容で読めるはずです。細かいところでは、この教材で扱っていない API や書き方（属性の値を読む `GetAttributeAsync`、要素の文字を読む `TextContentAsync`、小数の誤差を許して比べる `Is.EqualTo(...).Within(...)`、一覧を絞り込む `Where` など）も出てきます。追加のテストには、サーバーの応答を差し替える `RouteAsync` など、この教材で扱わなかった機能も登場するので、Playwright の公式ドキュメントと合わせて読んでみてください。
 - `FormValuesTestCases.GetCases` に自分でケースを追加してみましょう（例: スライダーの中間値、テキストに日本語の長い文を入れる など。ダミー値だけを使ってください）。
 - Playwright には、この教材で扱わなかった機能（画面のスクリーンショット、操作の記録など）もあります。興味があれば公式ドキュメントで調べてみてください。
+- 発展章の10章では、ボタン1回の操作で複数の通信が起きるアプリを題材に、送った本文・返ってきた本文を記録して確かめる方法（`page.Response` イベント、`RouteAsync`）を扱います。リファクタリング前のテストを作りたいときに読んでみてください。
